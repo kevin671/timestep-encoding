@@ -1,18 +1,18 @@
 #!/bin/sh
 #PJM -L rscgrp=share
 #PJM -L gpu=1
-#PJM -g gu15
+#PJM -g gu14
 #PJM -j
 #PJM --fs /work
 
-export WANDB_CONFIG_DIR="/work/gg45/g45004/parallel-looped-tf/tmp"
-export WANDB_DATA_DIR="/work/gg45/g45004/parallel-looped-tf/tmp"
-export WANDB_CACHE_DIR="/work/gg45/g45004/parallel-looped-tf/tmp"
+export WANDB_CONFIG_DIR="/work/gg45/g45004/timestep-encoding/preliminaries/tmp"
+export WANDB_DATA_DIR="/work/gg45/g45004/timestep-encoding/preliminaries/tmp"
+export WANDB_CACHE_DIR="/work/gg45/g45004/timestep-encoding/preliminaries/tmp"
 export WANDB_API_KEY="f1462e37dc61bbcaa335f10a8dd966bbaec5423a"
 
 source /work/gg45/g45004/.bashrc
 
-ROOT_DIR="/work/gg45/g45004/parallel-looped-tf" 
+ROOT_DIR="/work/gg45/g45004/timestep-encoding/preliminaries" 
 
 
 # Arithmetic Expression  ###########################################
@@ -77,28 +77,30 @@ ROOT_DIR="/work/gg45/g45004/parallel-looped-tf"
 #NUM_RANGE=120
 #VOCAB_SIZE=151
 
-LEN_OF_FIRST_STRING=60
-DATA_DIR=${ROOT_DIR}"/data/ED/"${LEN_OF_FIRST_STRING}
-DATA_DIR=${ROOT_DIR}"/data/ED/"${LEN_OF_FIRST_STRING}
-TASK=${ROOT_DIR}"/tasks/ED"
-MAXLEN=127
-MAXDATA=${MAXLEN}
-NUM_RANGE=180
-VOCAB_SIZE=211
-
-#LEN_OF_FIRST_STRING=100
+#LEN_OF_FIRST_STRING=60
+#DATA_DIR=${ROOT_DIR}"/data/ED/"${LEN_OF_FIRST_STRING}
 #DATA_DIR=${ROOT_DIR}"/data/ED/"${LEN_OF_FIRST_STRING}
 #TASK=${ROOT_DIR}"/tasks/ED"
-#MAXLEN=207
+#MAXLEN=127
 #MAXDATA=${MAXLEN}
-#NUM_RANGE=300
-#VOCAB_SIZE=331
+#NUM_RANGE=180
+#VOCAB_SIZE=211
+
+# Linear Equation  ###########################################
+DATA_DIR="${ROOT_DIR}/data/linear_equation"
+TASK="${ROOT_DIR}/tasks/equation"
+OUTPUT_DIR="${ROOT_DIR}/output/equation"
+MAXLEN=46
+MAXDATA=${MAXLEN}
+VOCAB_SIZE=22
+NUM_RANGE=11
 
 LAYER=1
-LOOP=10
+LOOP=100
 
 # OUTPUT_DIR=${ROOT_DIR}"/output/arithmetic_"${NUMBER_OF_OPERATORS}"_Loop_"${LOOP}
-OUTPUT_DIR=${ROOT_DIR}"/output/ED_"${LEN_OF_FIRST_STRING}"_Loop_"${LOOP}
+# OUTPUT_DIR=${ROOT_DIR}"/output/ED_"${LEN_OF_FIRST_STRING}"_Loop_"${LOOP}
+OUTPUT_DIR=${ROOT_DIR}"/output/LinEq_Looped_"${LOOP}
 #WANDB_NAME="Arithmetic_"${NUMBER_OF_OPERATORS}"_Loop_"${LOOP}
 WANDB_NAME="ED_"${LEN_OF_FIRST_STRING}"_Hyper_"${LOOP}
 
