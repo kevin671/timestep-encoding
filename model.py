@@ -455,7 +455,7 @@ class TimestepEmbedder(nn.Module):
         return t_emb
 
 
-class HyperLoopedGPT(LoopedGPT):
+class TimeDependentLoopedGPT(LoopedGPT):
     def __init__(self, config):
         super().__init__(config)
         self.timestep_embedder = TimestepEmbedder(config.n_embd)
@@ -477,16 +477,11 @@ class HyperLoopedGPT(LoopedGPT):
         tok_emb = self.transformer.wte(idx)  # token embeddings of shape (b, t, n_embd)
         pos_emb = self.transformer.wpe(pos)  # position embeddings of shape (t, n_embd)
         x = self.transformer.drop(tok_emb + pos_emb)
-        for t in self.transformer.n_loop:
+        for t in range(self.n_loop):
             t_emb = self.timestep_embedder(
                 torch.full((b,), t, dtype=torch.long, device=device)
             )
-            (
-                gate_msa,
-                gate_mlp,
-                scale_msa,
-                scale_mlp,
-            ) = self.adaLN_modulation(
+            gate_msa, gate_mlp, scale_msa, scale_mlp = self.adaLN_modulation(
                 t_emb
             ).chunk(4, dim=-1)
             x = x + gate_msa.unsqueeze(1) * self.transformer.attn(

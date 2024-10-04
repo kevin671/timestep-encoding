@@ -27,7 +27,7 @@ import torch
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from model import LoopedGPT, LoopedGPTConfig
+from model import LoopedGPT, LoopedGPTConfig, TimeDependentLoopedGPT
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
@@ -49,6 +49,7 @@ gradient_accumulation_steps = 5 * 8  # used to simulate larger batch sizes
 batch_size = 12  # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
 # model
+model_type = "looped"  # 'looped' or 'time_dependent'
 n_loop = 100
 n_layer = 1
 n_head = 12
@@ -140,7 +141,9 @@ def get_batch(split):
     if split == "train":
         data = np.memmap(os.path.join(data_dir, "train.bin"), dtype=np.uint16, mode="r")
     else:
-        data = np.memmap(os.path.join(data_dir, "validation.bin"), dtype=np.uint16, mode="r")
+        data = np.memmap(
+            os.path.join(data_dir, "validation.bin"), dtype=np.uint16, mode="r"
+        )
     ix = torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack(
         [torch.from_numpy((data[i : i + block_size]).astype(np.int64)) for i in ix]
@@ -196,7 +199,13 @@ if init_from == "scratch":
         )
     model_args["vocab_size"] = meta_vocab_size if meta_vocab_size is not None else 50304
     gptconf = LoopedGPTConfig(**model_args)
-    model = LoopedGPT(gptconf)
+    if model_type == "looped":
+        model = LoopedGPT(gptconf)
+    elif model_type == "time_dependent":
+        model = TimeDependentLoopedGPT(gptconf)
+    else:
+        raise ValueError(f"unknown model type {model_type}")
+
 elif init_from == "resume":
     print(f"Resuming training from {out_dir}")
     # resume training from a checkpoint.
@@ -209,7 +218,13 @@ elif init_from == "resume":
         model_args[k] = checkpoint_model_args[k]
     # create the model
     gptconf = LoopedGPTConfig(**model_args)
-    model = LoopedGPT(gptconf)
+    if model_type == "looped":
+        model = LoopedGPT(gptconf)
+    elif model_type == "time_dependent":
+        model = TimeDependentLoopedGPT(gptconf)
+    else:
+        raise ValueError(f"unknown model type {model_type}")
+
     state_dict = checkpoint["model"]
     # fix the keys of the state dictionary :(
     # honestly no idea how checkpoints sometimes get this prefix, have to debug more
