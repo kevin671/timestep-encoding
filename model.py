@@ -166,8 +166,8 @@ class LoopedGPT(nn.Module):
                 drop=nn.Dropout(config.dropout),
                 attn=CausalSelfAttention(config),
                 mlp=MLP(config),
-                norm1=nn.RMSNorm(config.n_embd),
-                norm2=nn.RMSNorm(config.n_embd),
+                norm1=nn.RMSNorm(config.n_embd, elementwise_affine=False),
+                norm2=nn.RMSNorm(config.n_embd, elementwise_affine=False),
                 ln_f=LayerNorm(config.n_embd, bias=config.bias),
             )
         )
