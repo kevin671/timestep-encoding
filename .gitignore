@@ -19,3 +19,7 @@ tmp/
 out/
 wandb/
 *.txt
+.wikitext/
+output/
+data/
+wandb/
