@@ -114,7 +114,7 @@ if dist.get_rank() == main_process:
         # model_path: "/work/gg45/g45004/parallel-looped-tf/output/ED_60_Loop_100/wvs7wzm0/epoch_40.pt"
         run_id = args.model_path.split("/")[-2]
         wandb.init(
-            project="looped_tf",
+            project="ICLR2025_CoT",
             config=args,
             name=args.wandb_name,
             id=run_id,
@@ -122,9 +122,7 @@ if dist.get_rank() == main_process:
         )
 
     else:
-        wandb.init(project="looped_tf", config=args, name=args.wandb_name)
-
-    wandb.init(project="looped_tf", config=args, name=args.wandb_name)
+        wandb.init(project="ICLR2025_CoT", config=args, name=args.wandb_name)
 
 
 local_rank = int(os.environ["LOCAL_RANK"])
