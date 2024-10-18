@@ -14,14 +14,24 @@ source /work/gg45/g45004/.bashrc
 
 ROOT_DIR="/work/gg45/g45004/timestep-encoding" 
 
-# Linear Equation  ###########################################
-COMPLEXITY=3
-DATA_DIR="${ROOT_DIR}/data/linear_equation/"${COMPLEXITY}
-TASK="${ROOT_DIR}/tasks/equation"
-MAXLEN=46
+# Arithmetic Expression  ###########################################
+COMPLEXITY=20
+DATA_DIR=${ROOT_DIR}"/data/arithmetic_expression/"${COMPLEXITY}
+TASK=${ROOT_DIR}"/tasks/arithmetic"
+OUTPUT_DIR=${ROOT_DIR}"/output/arithmetic"
+MAXLEN=$((4 * COMPLEXITY + 3))
 MAXDATA=${MAXLEN}
-VOCAB_SIZE=22
+VOCAB_SIZE=21
 NUM_RANGE=11
+
+# Linear Equation  ###########################################
+#COMPLEXITY=3
+#DATA_DIR="${ROOT_DIR}/data/linear_equation/"${COMPLEXITY}
+#TASK="${ROOT_DIR}/tasks/equation"
+#MAXLEN=46
+#MAXDATA=${MAXLEN}
+#VOCAB_SIZE=22
+#NUM_RANGE=11
 
 # Edit Distance  ###########################################
 #COMPLEXITY=60
@@ -33,17 +43,19 @@ NUM_RANGE=11
 #NUM_RANGE=180
 #VOCAB_SIZE=211
 
+MODEL="HyperLoopedGPT" # LoopedGPT, HyperLoopedGPT
 LAYER=1
-LOOP=10
+LOOP=50
 
-OUTPUT_DIR=${ROOT_DIR}"/output/$(basename "$TASK")_"${COMPLEXITY}"/Loop_"${LOOP}
-WANDB_NAME="$(basename "$TASK")_Loop_"${LOOP}
+OUTPUT_DIR=${ROOT_DIR}"/output/$(basename "$TASK")_"${COMPLEXITY}"/"${MODEL}"_"${LOOP}
+WANDB_NAME="$(basename "$TASK")_"${COMPLEXITY}"_"${MODEL}"_"${LOOP}
 
 torchrun --standalone --nproc_per_node=2 train.py\
  --file ${DATA_DIR}\
  --folder ${TASK}\
  --output_dir ${OUTPUT_DIR}\
  --wandb_name ${WANDB_NAME}\
+ --model ${MODEL}\
  --maxlen ${MAXLEN}\
  --maxdata ${MAXDATA}\
  --vocab ${VOCAB_SIZE}\
@@ -58,3 +70,4 @@ torchrun --standalone --nproc_per_node=2 train.py\
  --head 4\
  --num_layer ${LAYER}\
  --num_loop ${LOOP}\
+ --model_path "/work/gg45/g45004/timestep-encoding/output/arithmetic_20/HyperLoopedGPT_50/epneao3k/epoch_10.pt"

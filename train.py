@@ -11,7 +11,7 @@ from tqdm import tqdm
 from transformers import get_scheduler, set_seed
 
 import wandb
-from model import LoopedGPT  # GPT, HyperLoopedGPT,
+from model import GPT, HyperLoopedGPT, LoopedGPT
 
 
 def evaluate(cur_loader):
@@ -44,6 +44,12 @@ parser.add_argument("--epoch", type=int, default=50)
 parser.add_argument("--warmup", type=int, default=5)
 parser.add_argument("--output_dir", type=str, default="./output/log")
 parser.add_argument("--wandb_name", type=str, default="CoT")
+parser.add_argument(
+    "--model",
+    type=str,
+    default="LoopedGPT",
+    choices=["GPT", "LoopedGPT", "HyperLoopedGPT"],
+)
 parser.add_argument("--maxlen", type=int, default=120)
 parser.add_argument("--maxdata", type=int, default=120)
 parser.add_argument("--maxans", type=int, default=30)
@@ -128,9 +134,14 @@ if dist.get_rank() == main_process:
 local_rank = int(os.environ["LOCAL_RANK"])
 torch.cuda.set_device(local_rank)
 dist.barrier()
-model = LoopedGPT(args).cuda()
-# model = GPT(args).cuda()
-# model = HyperLoopedGPT(args).cuda()
+
+if args.model == "LoopedGPT":
+    model = LoopedGPT(args).cuda()
+elif args.model == "GPT":
+    model = GPT(args).cuda()
+elif args.model == "HyperLoopedGPT":
+    model = HyperLoopedGPT(args).cuda()
+
 if args.model_path:
     model.load_state_dict(torch.load(args.model_path), strict=True)
 
