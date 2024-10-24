@@ -2,6 +2,8 @@
 
 We present a Looped Transformers with Timestep Encoding
 
+You can find the paper in [arxiv](https://arxiv.org/abs/2410.01405).
+
 ## Setup
 
 ```shell

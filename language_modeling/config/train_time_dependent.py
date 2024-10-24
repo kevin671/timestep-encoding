@@ -12,7 +12,10 @@ model_type = "time_dependent"
 batch_size = 8
 block_size = 1024
 gradient_accumulation_steps = 5 * 8
-n_loop = 100
+n_loop = 10
+
+n_head = 16  # 12
+n_embd = 2048  # 768
 
 # this makes total number of tokens be 300B
 max_iters = 600000
