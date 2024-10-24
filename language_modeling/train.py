@@ -310,7 +310,9 @@ def get_lr(it):
 if wandb_log and master_process:
     import wandb
 
-    wandb.init(project=wandb_project, name=wandb_run_name, config=config)#, id="yt8vpagk", resume=True)
+    wandb.init(
+        project=wandb_project, name=wandb_run_name, config=config
+    )  # , id="yt8vpagk", resume=True)
 
 # training loop
 X, Y = get_batch("train")  # fetch the very first batch
