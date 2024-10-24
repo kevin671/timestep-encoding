@@ -14,12 +14,12 @@ root_dir="/work/gg45/g45004/timestep-encoding"
 NUMBER_OF_OPERATORS=16
 DATA_DIR="${root_dir}/data/arithmetic_expression/${NUMBER_OF_OPERATORS}"
 
-python3 tasks/arithmetic/data.py \
-    --file ${DATA_DIR} \
-    --length ${NUMBER_OF_OPERATORS} \
-    --train_size 1e6 \
-    --test_size 1e3\
-    --number_range 11\
+#python3 tasks/arithmetic/data.py \
+#    --file ${DATA_DIR} \
+#    --length ${NUMBER_OF_OPERATORS} \
+#    --train_size 1e6 \
+#    --test_size 1e3\
+#    --number_range 11\
 
 # Linear Equation  ###########################################
 DATA_DIR="${root_dir}/data/linear_equation"
@@ -85,3 +85,16 @@ LEN_OF_FIRST_STRING=24
 #    --train_size 1e5 \
 #    --test_size 1e2\
 #    --using 11
+
+# Longest Increasing Subsequence  ###########################################
+DATA_DIR="${root_dir}/data/LIS"
+
+LEN_INPUTS=100
+NUM_RANGE=250
+
+python3 tasks/LIS/data.py \
+    --file ${DATA_DIR}/${LEN_INPUTS} \
+    --length ${LEN_INPUTS} \
+    --train_size 1e6 \
+    --test_size 1e3\
+    --number_range ${NUM_RANGE}

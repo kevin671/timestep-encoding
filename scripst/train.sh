@@ -15,14 +15,14 @@ source /work/gg45/g45004/.bashrc
 ROOT_DIR="/work/gg45/g45004/timestep-encoding" 
 
 # Arithmetic Expression  ###########################################
-COMPLEXITY=20
-DATA_DIR=${ROOT_DIR}"/data/arithmetic_expression/"${COMPLEXITY}
-TASK=${ROOT_DIR}"/tasks/arithmetic"
-OUTPUT_DIR=${ROOT_DIR}"/output/arithmetic"
-MAXLEN=$((4 * COMPLEXITY + 3))
-MAXDATA=${MAXLEN}
-VOCAB_SIZE=21
-NUM_RANGE=11
+#COMPLEXITY=20
+#DATA_DIR=${ROOT_DIR}"/data/arithmetic_expression/"${COMPLEXITY}
+#TASK=${ROOT_DIR}"/tasks/arithmetic"
+#OUTPUT_DIR=${ROOT_DIR}"/output/arithmetic"
+#MAXLEN=$((4 * COMPLEXITY + 3))
+#MAXDATA=${MAXLEN}
+#VOCAB_SIZE=21
+#NUM_RANGE=11
 
 # Linear Equation  ###########################################
 #COMPLEXITY=3
@@ -34,18 +34,29 @@ NUM_RANGE=11
 #NUM_RANGE=11
 
 # Edit Distance  ###########################################
-#COMPLEXITY=60
-#LEN_OF_FIRST_STRING=60
-#DATA_DIR=${ROOT_DIR}"/data/ED/"${LEN_OF_FIRST_STRING}
-#TASK=${ROOT_DIR}"/tasks/ED"
-#MAXLEN=127
-#MAXDATA=${MAXLEN}
-#NUM_RANGE=180
-#VOCAB_SIZE=211
+COMPLEXITY=60
+LEN_OF_FIRST_STRING=60
+DATA_DIR=${ROOT_DIR}"/data/ED/"${LEN_OF_FIRST_STRING}
+TASK=${ROOT_DIR}"/tasks/ED"
+MAXLEN=127
+MAXDATA=${MAXLEN}
+NUM_RANGE=180
+VOCAB_SIZE=211
 
-MODEL="HyperLoopedGPT" # LoopedGPT, HyperLoopedGPT
+# Longest Increasing Subsequence  ###########################################
+#COMPLEXITY=100
+#DATA_DIR=${ROOT_DIR}"/data/LIS/"${COMPLEXITY}
+#TASK=${ROOT_DIR}"/tasks/LIS"
+#OUTPUT_DIR=${ROOT_DIR}"/output/LIS/"${COMPLEXITY}
+#MAXLEN=$((COMPLEXITY + 2))
+#MAXDATA=${MAXLEN}
+#VOCAB_SIZE=253
+#NUM_RANGE=250
+
+
+MODEL="LoopedGPT" # LoopedGPT, HyperLoopedGPT
 LAYER=1
-LOOP=50
+LOOP=100
 
 OUTPUT_DIR=${ROOT_DIR}"/output/$(basename "$TASK")_"${COMPLEXITY}"/"${MODEL}"_"${LOOP}
 WANDB_NAME="$(basename "$TASK")_"${COMPLEXITY}"_"${MODEL}"_"${LOOP}
@@ -70,4 +81,3 @@ torchrun --standalone --nproc_per_node=2 train.py\
  --head 4\
  --num_layer ${LAYER}\
  --num_loop ${LOOP}\
- --model_path "/work/gg45/g45004/timestep-encoding/output/arithmetic_20/HyperLoopedGPT_50/epneao3k/epoch_10.pt"
