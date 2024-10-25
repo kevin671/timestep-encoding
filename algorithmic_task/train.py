@@ -11,7 +11,7 @@ from tqdm import tqdm
 from transformers import get_scheduler, set_seed
 
 import wandb
-from model import GPT, HyperLoopedGPT, LoopedGPT
+from algorithmic_task.model import GPT, HyperLoopedGPT, LoopedGPT
 
 
 def evaluate(cur_loader):

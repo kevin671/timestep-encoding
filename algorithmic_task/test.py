@@ -6,7 +6,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import set_seed
 
-from model import GPT, HyperLoopedGPT, LoopedGPT
+from algorithmic_task.model import GPT, HyperLoopedGPT, LoopedGPT
 
 parser = argparse.ArgumentParser(description="test")
 
