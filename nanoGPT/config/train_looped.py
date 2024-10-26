@@ -11,7 +11,7 @@ wandb_run_name = "looped"
 batch_size = 12
 block_size = 1024
 gradient_accumulation_steps = 5 * 8
-n_loop = 10
+n_loop = 5
 
 n_head = 16  # 12
 n_embd = 2048  # 768
