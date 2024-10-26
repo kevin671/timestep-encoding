@@ -47,6 +47,6 @@ torchrun --standalone --nproc_per_node=1 train.py config/train_looped.py
 
 ## Acknowledgement
 
-- [Code for "Towards Revealing the Mystery behind Chain of Thought: a Theoretical Perspective"](https://github.com/guyuntian/CoT_benchmark/tree/main)
+- [Code for "Towards Revealing the Mystery behind Chain of Thought: a Theoretical Perspective"](https://github.com/guyuntian/CoT_benchmark)
 - [nanoGPT](https://github.com/karpathy/nanoGPT)
-- [Code for "Lessons on Parameter Sharing across Layers in Transformers"](https://github.com/takase/share_layer_params/tree/main)
+- [fairseq](https://github.com/facebookresearch/fairseq)
