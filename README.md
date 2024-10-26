@@ -41,7 +41,7 @@ torchrun --standalone --nproc_per_node=2 train.py\
 ### Language Modeling: WikiText-103
 
 ```
-cd language_modeling
+cd nanoGPT
 torchrun --standalone --nproc_per_node=1 train.py config/train_looped.py
 ```
 
