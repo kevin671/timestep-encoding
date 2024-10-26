@@ -4,14 +4,15 @@
 
 wandb_log = True
 wandb_project = "owt"
-wandb_run_name = "looped"
+wandb_run_name = "time_dependent_looped"
 
 # these make the total batch size be ~0.5M
 # 12 batch size * 1024 block size * 5 gradaccum * 8 GPUs = 491,520
+model_type = "time_dependent"
 batch_size = 12
 block_size = 1024
 gradient_accumulation_steps = 5 * 8
-n_loop = 10
+n_loop = 5
 
 n_head = 16  # 12
 n_embd = 2048  # 768
@@ -27,3 +28,5 @@ log_interval = 10
 
 # weight decay
 weight_decay = 1e-1
+
+init_from = "scratch"  # "resume"

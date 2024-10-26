@@ -224,7 +224,7 @@ class LoopedGPT(nn.Module):
         tok_emb = self.transformer.wte(idx)  # token embeddings of shape (b, t, n_embd)
         pos_emb = self.transformer.wpe(pos)  # position embeddings of shape (t, n_embd)
         x = self.transformer.drop(tok_emb + pos_emb)
-        for l in range(self.n_loop):
+        for _ in range(self.n_loop):
             x = x + self.transformer.attn(self.transformer.norm1(x))
             x = x + self.transformer.mlp(self.transformer.norm2(x))
         x = self.transformer.ln_f(x)
@@ -488,7 +488,7 @@ class TimeDependentLoopedGPT(LoopedGPT):
                 self.transformer.norm1(x) * (1 + scale_msa.unsqueeze(1))
             )
             x = x + gate_mlp.unsqueeze(1) * self.transformer.mlp(
-                self.transformer.norm2(x) + (1 + scale_mlp.unsqueeze(1))
+                self.transformer.norm2(x) * (1 + scale_mlp.unsqueeze(1))
             )
         x = self.transformer.ln_f(x)
 
