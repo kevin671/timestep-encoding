@@ -113,8 +113,6 @@ else:
 tokens_per_iter = gradient_accumulation_steps * ddp_world_size * batch_size * block_size
 print(f"tokens per iteration will be: {tokens_per_iter:,}")
 
-if master_process:
-    os.makedirs(out_dir, exist_ok=True)
 torch.manual_seed(1337 + seed_offset)
 torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
 torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
@@ -310,9 +308,14 @@ def get_lr(it):
 if wandb_log and master_process:
     import wandb
 
-    wandb.init(
+    run = wandb.init(
         project=wandb_project, name=wandb_run_name, config=config
     )  # , id="yt8vpagk", resume=True)
+
+    out_dir = os.path.join(out_dir, wandb.run.id) if wandb_log else out_dir
+
+if master_process:
+    os.makedirs(out_dir, exist_ok=True)
 
 # training loop
 X, Y = get_batch("train")  # fetch the very first batch

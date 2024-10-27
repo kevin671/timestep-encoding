@@ -16,26 +16,16 @@ conda activate loop_tf
 ### Dynamic Programming: Edit Distance
 
 ```bash
-torchrun --standalone --nproc_per_node=2 train.py\
- --file ${DATA_DIR}\
- --folder ${TASK}\
- --output_dir ${OUTPUT_DIR}\
- --wandb_name ${WANDB_NAME}\
- --model ${MODEL}\
- --maxlen ${MAXLEN}\
- --maxdata ${MAXDATA}\
- --vocab ${VOCAB_SIZE}\
- --num_range ${NUM_RANGE}\
- --weight_decay 0.01\
- --learning_rate 1e-4\
- --drop 0.0\
- --batch_size 64\
- --epoch 100\
- --warmup 5\
- --dmodel 256\
- --head 4\
- --num_layer ${LAYER}\
- --num_loop ${LOOP}\
+cd CoT_benchmark
+
+# Generate the data
+python3 tasks/ED/data.py --file "/data/ED/60_24" --length 60 --train_size 1e6 --test_size 1e3 --using 24
+# Here `using` + 2 = the max size of working vocabulary.
+
+# Train the model
+torchrun --standalone --nproc_per_node=2 train.py --file "data/ED/60" --folder "tasks/ED" --output_dir "output/ED_60/LoopedGPT_100" \
+ --wandb_name "ED_60_LoopedGPT_100" --model "LoopedGPT" --maxlen 127 --maxdata 127 --vocab 211 --num_range 180 --weight_decay 0.01 --learning_rate 1e-4 --drop 0.0 \
+ --batch_size 64 --epoch 100 --warmup 5 --dmodel 256 --head 4 --num_layer 1 --num_loop 100
 ```
 
 ### Language Modeling: WikiText-103
