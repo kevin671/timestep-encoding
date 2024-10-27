@@ -24,3 +24,8 @@ output/
 data/
 wandb/
 *.sh
+seq2seq/examples/translation/orig/
+seq2seq/examples/translation/wmt14_en_fr/
+CoT_benchmark/arithmetic/
+CoT_benchmark/equation/
+CoT_benchmark/LIS/
