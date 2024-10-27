@@ -6,7 +6,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import set_seed
 
-from algorithmic_task.model import GPT, HyperLoopedGPT, LoopedGPT
+from algorithmic_task.model import GPT, TimeDependentLoopedGPT, LoopedGPT
 
 parser = argparse.ArgumentParser(description="test")
 
@@ -50,7 +50,7 @@ torch.cuda.set_device(local_rank)
 dist.barrier()
 model = LoopedGPT(args).cuda()
 # model = GPT(args).cuda()
-# model = HyperLoopedGPT(args).cuda()
+# model = TimeDependentLoopedGPT(args).cuda()
 if args.model_path:
     model.load_state_dict(torch.load(args.model_path), strict=True)
 model = DDP(model, device_ids=[local_rank])

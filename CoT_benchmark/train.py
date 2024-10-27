@@ -6,12 +6,11 @@ import torch.distributed as dist
 import torch.nn as nn
 import torch.optim as optim
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from transformers import get_scheduler, set_seed
 
 import wandb
-from model import GPT, HyperLoopedGPT, LoopedGPT
+from model import GPT, TimeDependentLoopedGPT, LoopedGPT
 
 
 def evaluate(cur_loader):
@@ -48,7 +47,7 @@ parser.add_argument(
     "--model",
     type=str,
     default="LoopedGPT",
-    choices=["GPT", "LoopedGPT", "HyperLoopedGPT"],
+    choices=["GPT", "LoopedGPT", "TimeDependentLoopedGPT"],
 )
 parser.add_argument("--maxlen", type=int, default=120)
 parser.add_argument("--maxdata", type=int, default=120)
@@ -78,9 +77,6 @@ main_process = 0
 set_seed(args.seed)
 os.makedirs(args.output_dir, exist_ok=True)
 dist.init_process_group(backend="nccl")
-if dist.get_rank() == main_process:
-    log_writer = SummaryWriter(log_dir=args.output_dir)
-
 
 def set_optimizer_scheduler(model):
     no_decay = ["bias", "LayerNorm.weight"]
@@ -120,7 +116,7 @@ if dist.get_rank() == main_process:
         # model_path: "/work/gg45/g45004/parallel-looped-tf/output/ED_60_Loop_100/wvs7wzm0/epoch_40.pt"
         run_id = args.model_path.split("/")[-2]
         wandb.init(
-            project="ICLR2025_CoT",
+            project="timestep",
             config=args,
             name=args.wandb_name,
             id=run_id,
@@ -128,7 +124,7 @@ if dist.get_rank() == main_process:
         )
 
     else:
-        wandb.init(project="ICLR2025_CoT", config=args, name=args.wandb_name)
+        wandb.init(project="timestep", config=args, name=args.wandb_name)
 
 
 local_rank = int(os.environ["LOCAL_RANK"])
@@ -139,8 +135,8 @@ if args.model == "LoopedGPT":
     model = LoopedGPT(args).cuda()
 elif args.model == "GPT":
     model = GPT(args).cuda()
-elif args.model == "HyperLoopedGPT":
-    model = HyperLoopedGPT(args).cuda()
+elif args.model == "TimeDependentLoopedGPT":
+    model = TimeDependentLoopedGPT(args).cuda()
 
 if args.model_path:
     model.load_state_dict(torch.load(args.model_path), strict=True)

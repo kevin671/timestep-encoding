@@ -314,7 +314,7 @@ class HyperBlock(nn.Module):
         return x
 
 
-class HyperLoopedGPT(nn.Module):
+class TimeDependentLoopedGPT(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.num_loop = args.num_loop
@@ -369,7 +369,7 @@ if __name__ == "__main__":
         num_loop=100,
         rpe=True,
     )
-    model = HyperLoopedGPT(args)
+    model = TimeDependentLoopedGPT(args)
     print(model)
     idx = torch.randint(0, 21, (4, 120))
     print(model(idx).shape)

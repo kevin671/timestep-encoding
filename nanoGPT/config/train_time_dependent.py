@@ -11,7 +11,7 @@ model_type = "time_dependent"
 batch_size = 24
 block_size = 1024
 gradient_accumulation_steps = 5 * 4
-n_loop = 12
+n_loop = 24
 
 n_head = 16  # 12
 n_embd = 2048  # 768
