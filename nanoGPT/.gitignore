@@ -1,0 +1,7 @@
+data/*.bin
+downloads
+out
+tmp
+wandb
+wikitext
+train.sh

@@ -7,11 +7,8 @@ __pycache__/
 *.pkl
 *.pt
 *.pyc
-input.txt
 env/
 venv/
-wikitext/
-downloads/
 *.lock
 *.out
 .d*
@@ -19,13 +16,4 @@ tmp/
 out/
 wandb/
 *.txt
-.wikitext/
 output/
-data/
-wandb/
-*.sh
-seq2seq/examples/translation/orig/
-seq2seq/examples/translation/wmt14_en_fr/
-CoT_benchmark/tasks/arithmetic/
-CoT_benchmark/tasks/equation/
-CoT_benchmark/tasks/LIS/
