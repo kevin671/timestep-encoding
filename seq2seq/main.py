@@ -214,6 +214,7 @@ parser.add_argument(
 parser.add_argument(
     "--tensorwatch-port", default=0, type=int, help="set tensorwatch port"
 )
+parser.add_argument("--num_loop", type=int, default=100)
 
 
 def main(args):
@@ -246,6 +247,10 @@ def main(args):
 
     logging.info("saving to %s", save_path)
     logging.debug("run arguments: %s", args)
+
+    import wandb
+
+    wandb.init(project="seq2seq", config=args)
 
     device = args.device
     dtype = torch_dtypes.get(args.dtype)

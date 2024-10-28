@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .weight_norm import weight_norm as wn
+
 from .linear import Linear
+from .weight_norm import weight_norm as wn
 
 """ Implementations of attention layers."""
 
@@ -15,11 +16,24 @@ class AttentionLayer(nn.Module):
       num_units: Number of units used in the attention layer
     """
 
-    def __init__(self, query_size, key_size, value_size=None, mode='bahdanau',
-                 normalize=False, dropout=0, batch_first=False, weight_norm=False, bias=True,
-                 query_transform=True, output_transform=True, output_nonlinearity='tanh', output_size=None):
+    def __init__(
+        self,
+        query_size,
+        key_size,
+        value_size=None,
+        mode="bahdanau",
+        normalize=False,
+        dropout=0,
+        batch_first=False,
+        weight_norm=False,
+        bias=True,
+        query_transform=True,
+        output_transform=True,
+        output_nonlinearity="tanh",
+        output_size=None,
+    ):
         super(AttentionLayer, self).__init__()
-        assert mode == 'bahdanau' or mode == 'dot_prod'
+        assert mode == "bahdanau" or mode == "dot_prod"
         value_size = value_size or key_size  # Usually key and values are the same
         self.mode = mode
         self.query_size = query_size
@@ -27,7 +41,7 @@ class AttentionLayer(nn.Module):
         self.value_size = value_size
         self.normalize = normalize
         wn_func = wn if weight_norm else lambda x: x
-        if mode == 'bahdanau':
+        if mode == "bahdanau":
             self.linear_att = nn.Linear(key_size, 1, bias=bias)
             if normalize:
                 self.linear_att = nn.utils.weight_norm(self.linear_att)
@@ -36,7 +50,8 @@ class AttentionLayer(nn.Module):
         if output_transform:
             output_size = output_size or query_size
             self.linear_out = wn_func(
-                nn.Linear(query_size + value_size, output_size, bias=bias))
+                nn.Linear(query_size + value_size, output_size, bias=bias)
+            )
             self.output_size = output_size
         else:
             self.output_size = value_size
@@ -62,15 +77,15 @@ class AttentionLayer(nn.Module):
 
         b, t_k, n = list(att_keys.size())
         t_q = att_query.size(1)
-        if self.mode == 'bahdanau':
+        if self.mode == "bahdanau":
             att_query = att_query.unsqueeze(2).expand(b, t_q, t_k, n)
             att_keys = att_keys.unsqueeze(1).expand(b, t_q, t_k, n)
             sum_qk = att_query + att_keys
             sum_qk = sum_qk.view(b * t_k * t_q, n)
             out = self.linear_att(F.tanh(sum_qk)).view(b, t_q, t_k)
-        elif self.mode == 'dot_prod':
+        elif self.mode == "dot_prod":
             out = torch.bmm(att_query, att_keys.transpose(1, 2))
-            if hasattr(self, 'scale'):
+            if hasattr(self, "scale"):
                 out = out * self.scale
         return out
 
@@ -93,7 +108,7 @@ class AttentionLayer(nn.Module):
         t_k = keys.size(1)
         t_q = query.size(1)
 
-        if hasattr(self, 'linear_q'):
+        if hasattr(self, "linear_q"):
             # Fully connected layers to transform query
             att_query = self.linear_q(query)
         else:
@@ -113,11 +128,11 @@ class AttentionLayer(nn.Module):
         scores_normalized = self.dropout(scores_normalized)
         context = torch.bmm(scores_normalized, values)  # b x t_q x n
 
-        if hasattr(self, 'linear_out'):
+        if hasattr(self, "linear_out"):
             context = self.linear_out(torch.cat([query, context], 2))
-            if self.output_nonlinearity == 'tanh':
+            if self.output_nonlinearity == "tanh":
                 context = F.tanh(context)
-            elif self.output_nonlinearity == 'relu':
+            elif self.output_nonlinearity == "relu":
                 context = F.relu(context, inplace=True)
         if single_query:
             context = context.squeeze(1)
@@ -152,10 +167,10 @@ class OrderAttention(nn.Module):
     def forward(self, q, k):
         b_q, t_q, dim_q = list(q.size())
         b_k, t_k, dim_k = list(k.size())
-        assert(dim_q == dim_k)  # dims should be equal
+        assert dim_q == dim_k  # dims should be equal
         b = b_q
         qk = torch.bmm(q, k.transpose(1, 2))  # b x t_q x t_k
-        qk = qk / (dim_k ** 0.5)
+        qk = qk / (dim_k**0.5)
         mask = None
         with torch.no_grad():
             if self.causal and t_q > 1:
@@ -168,10 +183,11 @@ class OrderAttention(nn.Module):
                 mask_q = self.mask_q.unsqueeze(2).expand(b, t_q, t_k)
                 mask = mask_q if mask is None else mask | mask_q
         if mask is not None:
-            qk.masked_fill_(mask, float('-inf'))
+            qk.masked_fill_(mask, float("-inf"))
 
-        return F.softmax(qk, dim=2,
-                         dtype=torch.float32 if qk.dtype == torch.float16 else qk.dtype)
+        return F.softmax(
+            qk, dim=2, dtype=torch.float32 if qk.dtype == torch.float16 else qk.dtype
+        )
 
 
 class SDPAttention(nn.Module):
@@ -199,12 +215,12 @@ class SDPAttention(nn.Module):
         b_q, t_q, dim_q = list(q.size())
         b_k, t_k, dim_k = list(k.size())
         b_v, t_v, dim_v = list(v.size())
-        assert(b_q == b_k and b_k == b_v)  # batch size should be equal
-        assert(dim_q == dim_k)  # dims should be equal
-        assert(t_k == t_v)  # times should be equal
+        assert b_q == b_k and b_k == b_v  # batch size should be equal
+        assert dim_q == dim_k  # dims should be equal
+        assert t_k == t_v  # times should be equal
         b = b_q
         qk = torch.bmm(q, k.transpose(1, 2))  # b x t_q x t_k
-        qk = qk / (dim_k ** 0.5)
+        qk = qk / (dim_k**0.5)
         mask = None
         with torch.no_grad():
             if self.causal and t_q > 1:
@@ -222,8 +238,11 @@ class SDPAttention(nn.Module):
         if self.gumbel:
             sm_qk = F.gumbel_softmax(qk, dim=2, hard=True)
         else:
-            sm_qk = F.softmax(qk, dim=2,
-                              dtype=torch.float32 if qk.dtype == torch.float16 else qk.dtype)
+            sm_qk = F.softmax(
+                qk,
+                dim=2,
+                dtype=torch.float32 if qk.dtype == torch.float16 else qk.dtype,
+            )
         sm_qk = self.dropout(sm_qk)
         return torch.bmm(sm_qk, v), sm_qk  # b x t_q x dim_v
 
@@ -233,21 +252,33 @@ class MultiHeadAttentionV2(nn.Module):
     Scaled Dot-Product Attention
     """
 
-    def __init__(self, input_size, output_size, num_heads, weight_norm=False, groups=1, dropout=0, causal=False, add_bias_kv=False):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        num_heads,
+        weight_norm=False,
+        groups=1,
+        dropout=0,
+        causal=False,
+        add_bias_kv=False,
+    ):
         super(MultiHeadAttentionV2, self).__init__()
-        assert(input_size % num_heads == 0)
+        assert input_size % num_heads == 0
         wn_func = wn if weight_norm else lambda x: x
         self.input_size = input_size
         self.output_size = output_size
         self.num_heads = num_heads
         self.linear_q = wn_func(
-            Linear(input_size, input_size, bias=False, groups=groups))
+            Linear(input_size, input_size, bias=False, groups=groups)
+        )
         self.linear_k = wn_func(
-            Linear(input_size, input_size, bias=add_bias_kv, groups=groups))
+            Linear(input_size, input_size, bias=add_bias_kv, groups=groups)
+        )
         self.linear_v = wn_func(
-            Linear(input_size, input_size, bias=add_bias_kv, groups=groups))
-        self.linear_out = wn_func(
-            Linear(input_size, output_size, groups=groups))
+            Linear(input_size, input_size, bias=add_bias_kv, groups=groups)
+        )
+        self.linear_out = wn_func(Linear(input_size, output_size, groups=groups))
         self.sdp_attention = SDPAttention(dropout=dropout, causal=causal)
 
     def set_mask_q(self, masked_tq):
@@ -286,11 +317,31 @@ class MultiHeadAttention(nn.MultiheadAttention):
     Scaled Dot-Product Attention
     """
 
-    def __init__(self, input_size, output_size, num_heads, dropout=0, causal=False, bias=True, add_bias_kv=False, add_zero_attn=False, batch_first=True, groups=None, weight_norm=None):
-        super(MultiHeadAttention, self).__init__(input_size, num_heads, dropout=dropout,
-                                                 bias=bias, add_bias_kv=add_bias_kv, add_zero_attn=add_zero_attn)
-        assert(input_size % num_heads == 0)
-        assert(input_size == output_size)
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        num_heads,
+        dropout=0,
+        causal=False,
+        bias=True,
+        add_bias_kv=False,
+        add_zero_attn=False,
+        batch_first=True,
+        groups=None,
+        weight_norm=None,
+    ):
+        super(MultiHeadAttention, self).__init__(
+            input_size,
+            num_heads,
+            dropout=dropout,
+            bias=bias,
+            add_bias_kv=add_bias_kv,
+            add_zero_attn=add_zero_attn,
+            batch_first=batch_first,
+        )
+        assert input_size % num_heads == 0
+        assert input_size == output_size
         self.causal = causal
         self.batch_first = batch_first
 
@@ -308,10 +359,12 @@ class MultiHeadAttention(nn.MultiheadAttention):
         t_k = key.size(time_dim)
         with torch.no_grad():
             if self.causal and t_q > 1:
-                attn_mask = torch.full((t_q, t_k), float('-inf'),
-                                       device=query.device, dtype=query.dtype).triu_(1)
+                attn_mask = torch.full(
+                    (t_q, t_k), float("-inf"), device=query.device, dtype=query.dtype
+                ).triu_(1)
             key_padding_mask = self.mask_k
 
+        """
         if self.batch_first:
             qkv_same = query.data_ptr() == key.data_ptr() == value.data_ptr()
             kv_same = key.data_ptr() == value.data_ptr()
@@ -324,11 +377,20 @@ class MultiHeadAttention(nn.MultiheadAttention):
                 query = key
             else:
                 query = query.transpose(0, 1)
-        elif key_padding_mask is not None:
-            key_padding_mask.t()
 
-        attn_output, attn_output_weights = super(
-            MultiHeadAttention, self).forward(query, key, value, key_padding_mask=key_padding_mask, attn_mask=attn_mask, need_weights=need_weights)
-        if self.batch_first:
-            attn_output = attn_output.transpose(0, 1)
+            if key_padding_mask is not None:
+                key_padding_mask = key_padding_mask.t()
+        """
+
+        attn_output, attn_output_weights = super(MultiHeadAttention, self).forward(
+            query,
+            key,
+            value,
+            key_padding_mask=key_padding_mask,
+            attn_mask=attn_mask,
+            need_weights=need_weights,
+        )
+        # print(f"{attn_output_weights.size()}")
+        # if self.batch_first:
+        #    attn_output = attn_output.transpose(0, 1)
         return attn_output, attn_output_weights

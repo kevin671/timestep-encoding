@@ -5,12 +5,11 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 import torch.optim as optim
+import wandb
+from model import GPT, LoopedGPT, TimeDependentLoopedGPT
 from torch.nn.parallel import DistributedDataParallel as DDP
 from tqdm import tqdm
 from transformers import get_scheduler, set_seed
-
-import wandb
-from model import GPT, TimeDependentLoopedGPT, LoopedGPT
 
 
 def evaluate(cur_loader):
@@ -77,6 +76,7 @@ main_process = 0
 set_seed(args.seed)
 os.makedirs(args.output_dir, exist_ok=True)
 dist.init_process_group(backend="nccl")
+
 
 def set_optimizer_scheduler(model):
     no_decay = ["bias", "LayerNorm.weight"]

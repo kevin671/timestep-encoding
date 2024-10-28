@@ -1,22 +1,25 @@
-import os
-import time
 import logging
-from itertools import chain, cycle
+import math
+import os
+import shutil
+import time
 from copy import deepcopy
+from itertools import chain, cycle
+
+import numpy as np
 import torch
 import torch.nn as nn
+import wandb
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 from torch.nn.utils import clip_grad_norm_
-import shutil
-import math
-import numpy as np
-from .utils.log import ResultsLog
-from .utils.optim import OptimRegime
-from .utils.meters import AverageMeter
-from .utils.cross_entropy import CrossEntropyLoss
 
-from .config import PAD, UNK, EOS, BOS
 from . import batch_nested_sequences
+from .config import BOS, EOS, PAD, UNK
+from .utils.cross_entropy import CrossEntropyLoss
+from .utils.log import ResultsLog
+from .utils.meters import AverageMeter
+from .utils.optim import OptimRegime
+
 try:
     import tensorwatch
     _TENSORWATCH_AVAILABLE = True
@@ -215,6 +218,8 @@ class Seq2SeqTrainer(object):
         self.watcher = None
         self.streams = {}
 
+        # wandb.init(project="seq2seq", entity="wandb")
+
     @property
     def batch_first(self):
         return getattr(self.model.decoder, 'batch_first', False)
@@ -333,6 +338,9 @@ class Seq2SeqTrainer(object):
                 loss, nll, acc, num_words = self.iterate(src, target,
                                                          training=training,
                                                          chunk_batch=chunk_batch)
+
+                if i % 100 == 0:
+                    wandb.log({"loss": loss, "perplexity": math.exp(nll), "accuracy": acc})
 
                 # measure accuracy and record loss
                 meters['loss'].update(loss, num_words)
