@@ -40,8 +40,6 @@ You can control parameters in `config/train_looped.py` and `config/train_time_de
 
 ### Machine Translation: WMT16_de_en
 
-Looped Transformers are implemetned in `seq2seq/fairseq/modules/timestep_layer.py` and `seq2seq/fairseq/models/looped_transformer.py`.
-
 ```bash
 cd seq2seq
 
