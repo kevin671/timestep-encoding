@@ -49,8 +49,10 @@ cd seq2seq
 bash scripts/downloaders/wmt16_en_de.sh
 
 # Train the model
+bash scripts/train/train.sh
 
 # Evaluate
+bash scripts/eval/eval_bleu.sh
 
 ```
 
@@ -58,4 +60,4 @@ bash scripts/downloaders/wmt16_en_de.sh
 
 - [Code for "Towards Revealing the Mystery behind Chain of Thought: a Theoretical Perspective"](https://github.com/guyuntian/CoT_benchmark)
 - [nanoGPT](https://github.com/karpathy/nanoGPT)
-- [Seq2Seq in PyTorch](https://github.com/eladhoffer/seq2seq.pytorch/tree/master)
+- [Seq2Seq in PyTorch](https://github.com/eladhoffer/seq2seq.pytorch)
