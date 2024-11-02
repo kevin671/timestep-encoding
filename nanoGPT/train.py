@@ -24,10 +24,11 @@ from contextlib import nullcontext
 
 import numpy as np
 import torch
+import torch.distributed as dist
+from gpt import GPT, GPTConfig
+from model import LoopedGPT, LoopedGPTConfig, TimeDependentLoopedGPT
 from torch.distributed import destroy_process_group, init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
-
-from model import LoopedGPT, LoopedGPTConfig, TimeDependentLoopedGPT
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
@@ -43,6 +44,7 @@ init_from = "scratch"  # 'scratch' or 'resume' or 'gpt2*'
 wandb_log = False  # disabled by default
 wandb_project = "timestep"
 wandb_run_name = "gpt2"  # 'run' + str(time.time())
+resumed_run_id = None
 # data
 dataset = "wikitext-103"
 gradient_accumulation_steps = 5 * 8  # used to simulate larger batch sizes
@@ -175,6 +177,33 @@ if os.path.exists(meta_path):
     meta_vocab_size = meta["vocab_size"]
     print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
 
+
+# logging
+if wandb_log and master_process:
+    import wandb
+
+    if init_from == "resume":
+        run = wandb.init(
+            project=wandb_project,
+            name=wandb_run_name,
+            config=config,
+            id=resumed_run_id,
+            resume=True,
+        )
+    else:
+        run = wandb.init(
+            project=wandb_project, name=wandb_run_name, config=config
+        )  # , id="yt8vpagk", resume=True)
+
+    out_dir = os.path.join(out_dir, wandb.run.id) if wandb_log else out_dir
+
+out_dir = [out_dir]  # Place it in a list to use broadcast
+dist.broadcast_object_list(out_dir, src=0)
+out_dir = out_dir[0]  # Unpack from the list
+
+if master_process:
+    os.makedirs(out_dir, exist_ok=True)
+
 # model init
 model_args = dict(
     n_layer=n_layer,
@@ -196,11 +225,15 @@ if init_from == "scratch":
             "defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)"
         )
     model_args["vocab_size"] = meta_vocab_size if meta_vocab_size is not None else 50304
-    gptconf = LoopedGPTConfig(**model_args)
     if model_type == "looped":
+        gptconf = LoopedGPTConfig(**model_args)
         model = LoopedGPT(gptconf)
     elif model_type == "time_dependent":
+        gptconf = LoopedGPTConfig(**model_args)
         model = TimeDependentLoopedGPT(gptconf)
+    elif model_type == "gpt2":
+        gptconf = GPTConfig(**model_args)
+        model = GPT(gptconf)
     else:
         raise ValueError(f"unknown model type {model_type}")
 
@@ -303,19 +336,6 @@ def get_lr(it):
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
     return min_lr + coeff * (learning_rate - min_lr)
 
-
-# logging
-if wandb_log and master_process:
-    import wandb
-
-    run = wandb.init(
-        project=wandb_project, name=wandb_run_name, config=config
-    )  # , id="yt8vpagk", resume=True)
-
-    out_dir = os.path.join(out_dir, wandb.run.id) if wandb_log else out_dir
-
-if master_process:
-    os.makedirs(out_dir, exist_ok=True)
 
 # training loop
 X, Y = get_batch("train")  # fetch the very first batch

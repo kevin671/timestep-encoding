@@ -1,7 +1,7 @@
 #!/bin/sh
 #PJM -L rscgrp=share
-#PJM -L gpu=4
-#PJM -g gk36
+#PJM -L gpu=2
+#PJM -g gu14
 #PJM -j
 #PJM --fs /work
 
@@ -20,15 +20,18 @@ OUTPUT_DIR=${3:-"./results"}
 
 WARMUP="4000"
 LR0="512**(-0.5)"
-NUM_GPUS=4
+NUM_GPUS=2
 
-python -m torch.distributed.launch --nproc_per_node=${NUM_GPUS} main.py \
-  --save transformer_base \
+NUM_LOOPS=3
+MODEL_TYPE=LoopedTransformer  # TimeDependentLoopedTransformer # LoopedTransformer
+
+python -m torch.distributed.launch --standalone --nproc_per_node=${NUM_GPUS} main.py \
+  --save ${MODEL_TYPE}_${NUM_LOOPS} \
   --dataset ${DATASET} \
   --dataset-dir ${DATASET_DIR} \
   --results-dir ${OUTPUT_DIR} \
-  --model Transformer \
-  --model-config "{'num_layers': 6, 'hidden_size': 512, 'num_heads': 8, 'inner_linear': 2048, 'dropout':0.1}" \
+  --model ${MODEL_TYPE} \
+  --model-config "{'num_layers': 1, 'num_loops': ${NUM_LOOPS}, 'hidden_size': 1024, 'num_heads': 16, 'inner_linear': 4096, 'dropout':0.1, 'prenormalized': True}" \
   --data-config "{'moses_pretok':True,'tokenization':'bpe', 'tokenization_config':{'num_symbols':32000}, 'shared_vocab':True}" \
   --b 64 \
   --chunk-batch 2 \

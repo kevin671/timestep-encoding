@@ -33,18 +33,14 @@ parser.add_argument(
     default="{'tokenization':'bpe', 'num_symbols':32000, 'shared_vocab':True}",
     help="data configuration",
 )
-parser.add_argument(
-    "--results-dir", metavar="RESULTS_DIR", default="./results", help="results dir"
-)
+parser.add_argument("--results-dir", metavar="RESULTS_DIR", default="./results", help="results dir")
 parser.add_argument("--save", metavar="SAVE", default="", help="saved folder")
 parser.add_argument(
     "--model",
     metavar="MODEL",
     default="RecurrentAttentionSeq2Seq",
     choices=models.__all__,
-    help="model architecture: "
-    + " | ".join(models.__all__)
-    + " (default: RecurrentAttentionSeq2Seq)",
+    help="model architecture: " + " | ".join(models.__all__) + " (default: RecurrentAttentionSeq2Seq)",
 )
 parser.add_argument(
     "--model-config",
@@ -56,9 +52,7 @@ parser.add_argument(
     default="0",
     help='device ids assignment (e.g "0,1", {"encoder":0, "decoder":1})',
 )
-parser.add_argument(
-    "--device", default="cuda", help='device assignment ("cpu" or "cuda")'
-)
+parser.add_argument("--device", default="cuda", help='device assignment ("cpu" or "cuda")')
 parser.add_argument(
     "--trainer",
     metavar="TRAINER",
@@ -78,33 +72,23 @@ parser.add_argument(
     type=int,
     help="number of data loading workers (default: 8)",
 )
-parser.add_argument(
-    "--epochs", default=100, type=int, help="number of total epochs to run"
-)
+parser.add_argument("--epochs", default=100, type=int, help="number of total epochs to run")
 parser.add_argument(
     "--start-epoch",
     default=None,
     type=int,
     help="manual epoch number (useful on restarts)",
 )
-parser.add_argument(
-    "-b", "--batch-size", default=32, type=int, help="mini-batch size (default: 32)"
-)
-parser.add_argument(
-    "--keep-checkpoints", default=10, type=int, help="checkpoints to save"
-)
+parser.add_argument("-b", "--batch-size", default=32, type=int, help="mini-batch size (default: 32)")
+parser.add_argument("--keep-checkpoints", default=10, type=int, help="checkpoints to save")
 parser.add_argument(
     "--eval-batch-size",
     default=None,
     type=int,
     help="mini-batch size used for evaluation (default: batch-size)",
 )
-parser.add_argument(
-    "--world-size", default=-1, type=int, help="number of distributed processes"
-)
-parser.add_argument(
-    "--local-rank", default=-1, type=int, help="rank of distributed processes"
-)
+parser.add_argument("--world-size", default=-1, type=int, help="number of distributed processes")
+parser.add_argument("--local-rank", default=-1, type=int, help="rank of distributed processes")
 parser.add_argument(
     "--dist-init",
     default="env://",
@@ -117,9 +101,7 @@ parser.add_argument(
     type=str,
     help="decoder input-to-output forcing",
 )
-parser.add_argument(
-    "--dist-backend", default="nccl", type=str, help="distributed backend"
-)
+parser.add_argument("--dist-backend", default="nccl", type=str, help="distributed backend")
 parser.add_argument(
     "--optimization-config",
     default="[{'epoch':0, 'optimizer':'SGD', 'lr':0.1, 'momentum':0.9}]",
@@ -133,9 +115,7 @@ parser.add_argument(
     type=int,
     help="print frequency in iterations(default: 50)",
 )
-parser.add_argument(
-    "--save-freq", default=600, type=int, help="save frequency in seconds(default: 600)"
-)
+parser.add_argument("--save-freq", default=600, type=int, help="save frequency in seconds(default: 600)")
 parser.add_argument(
     "--eval-freq",
     default=2500,
@@ -186,34 +166,24 @@ parser.add_argument(
     type=float,
     help="if value not None - init weights to U(-value,value)",
 )
-parser.add_argument(
-    "--max-length", default=None, type=int, help="maximum sequence length"
-)
+parser.add_argument("--max-length", default=None, type=int, help="maximum sequence length")
 parser.add_argument(
     "--max-tokens",
     default=None,
     type=int,
     help="maximum sequence tokens -- batch is trimmed if exceeded",
 )
-parser.add_argument(
-    "--fixed-length", default=None, type=int, help="fixed sequence length"
-)
+parser.add_argument("--fixed-length", default=None, type=int, help="fixed sequence length")
 parser.add_argument(
     "--chunk-batch",
     default=1,
     type=int,
     help="chunk batch size for multiple passes (training) -- used to fit large batches in memory",
 )
-parser.add_argument(
-    "--duplicates", default=1, type=int, help="number of duplicates over singel example"
-)
+parser.add_argument("--duplicates", default=1, type=int, help="number of duplicates over singel example")
 parser.add_argument("--seed", default=123, type=int, help="random seed (default: 123)")
-parser.add_argument(
-    "--tensorwatch", action="store_true", default=False, help="set tensorwatch logging"
-)
-parser.add_argument(
-    "--tensorwatch-port", default=0, type=int, help="set tensorwatch port"
-)
+parser.add_argument("--tensorwatch", action="store_true", default=False, help="set tensorwatch logging")
+parser.add_argument("--tensorwatch-port", default=0, type=int, help="set tensorwatch port")
 parser.add_argument("--num_loop", type=int, default=100)
 
 
@@ -250,7 +220,8 @@ def main(args):
 
     import wandb
 
-    wandb.init(project="seq2seq", config=args)
+    if args.local_rank == 0:
+        wandb.init(project="seq2seq", config=args)
 
     device = args.device
     dtype = torch_dtypes.get(args.dtype)

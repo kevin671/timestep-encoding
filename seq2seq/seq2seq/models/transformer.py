@@ -15,16 +15,15 @@ from .modules.transformer_blocks import (
     EncoderBlock,
     EncoderBlockPreNorm,
     PositionalEmbedding,
+    TimeDependentDecoderBlockPreNorm,
+    TimeDependentEncoderBlockPreNorm,
     positional_embedding,
 )
 from .seq2seq_base import Seq2Seq
 
 
 def index_select_2d(x, order):
-    idxs = order.add(
-        torch.arange(order.size(0), dtype=torch.long, device=order.device).view(-1, 1)
-        * order.size(1)
-    )
+    idxs = order.add(torch.arange(order.size(0), dtype=torch.long, device=order.device).view(-1, 1) * order.size(1))
     out_sz = x.shape
     out_sz = (order.size(0), order.size(1), *out_sz[2:])
     return x.flatten(0, 1).index_select(0, idxs.contiguous().view(-1)).view(out_sz)
@@ -112,27 +111,27 @@ class TransformerAttentionEncoder(nn.Module):
         weight_norm=False,
         dropout=0,
         embedder=None,
+        time_dependent=False,
     ):
 
         super(TransformerAttentionEncoder, self).__init__()
         embedding_size = embedding_size or hidden_size
         if embedding_size != hidden_size:
-            self.input_projection = nn.Parameter(
-                torch.empty(embedding_size, hidden_size)
-            )
+            self.input_projection = nn.Parameter(torch.empty(embedding_size, hidden_size))
             nn.init.kaiming_uniform_(self.input_projection, a=math.sqrt(5))
         self.hidden_size = hidden_size
         self.batch_first = batch_first
         self.mask_symbol = mask_symbol
-        self.embedder = embedder or nn.Embedding(
-            vocab_size, embedding_size, padding_idx=PAD
-        )
+        self.embedder = embedder or nn.Embedding(vocab_size, embedding_size, padding_idx=PAD)
         self.scale_embedding = hidden_size**0.5
         self.dropout = nn.Dropout(dropout, inplace=True)
-        if prenormalized:
-            block = EncoderBlockPreNorm
+        if time_dependent:
+            block = TimeDependentEncoderBlockPreNorm
         else:
-            block = EncoderBlock
+            if prenormalized:
+                block = EncoderBlockPreNorm
+            else:
+                block = EncoderBlock
         self.blocks = nn.ModuleList(
             [
                 block(
@@ -160,9 +159,7 @@ class TransformerAttentionEncoder(nn.Module):
         x = self.embedder(inputs).mul_(self.scale_embedding)
         if hasattr(self, "input_projection"):
             x = x @ self.input_projection
-        pos_embedding = positional_embedding(
-            x.size(time_dim), x.size(-1), device=x.device
-        )
+        pos_embedding = positional_embedding(x.size(time_dim), x.size(-1), device=x.device)
         x.add_(pos_embedding.unsqueeze(batch_dim))
         x = self.dropout(x)
 
@@ -201,21 +198,18 @@ class TransformerAttentionDecoder(nn.Module):
         permuted=False,
         learned_condition=False,
         max_length=512,
+        time_dependent=False,
         **kwargs
     ):
 
         super(TransformerAttentionDecoder, self).__init__()
         embedding_size = embedding_size or hidden_size
         if embedding_size != hidden_size:
-            self.input_projection = nn.Parameter(
-                torch.empty(embedding_size, hidden_size)
-            )
+            self.input_projection = nn.Parameter(torch.empty(embedding_size, hidden_size))
             nn.init.kaiming_uniform_(self.input_projection, a=math.sqrt(5))
         self.batch_first = batch_first
         self.mask_symbol = mask_symbol
-        self.embedder = embedder or nn.Embedding(
-            vocab_size, embedding_size, padding_idx=PAD
-        )
+        self.embedder = embedder or nn.Embedding(vocab_size, embedding_size, padding_idx=PAD)
         self.scale_embedding = hidden_size**0.5
         self.dropout = nn.Dropout(dropout, inplace=True)
         self.stateful = stateful
@@ -236,14 +230,15 @@ class TransformerAttentionDecoder(nn.Module):
             if learned_condition:
                 self.conditioned_pos = nn.Embedding(max_length, embedding_size)
             else:
-                self.conditioned_pos = PositionalEmbedding(
-                    embedding_size, min_timescale=1.0e4, max_timescale=1.0e8
-                )
+                self.conditioned_pos = PositionalEmbedding(embedding_size, min_timescale=1.0e4, max_timescale=1.0e8)
 
-        if prenormalized:
-            block = DecoderBlockPreNorm
+        if time_dependent:
+            block = TimeDependentDecoderBlockPreNorm
         else:
-            block = DecoderBlock
+            if prenormalized:
+                block = DecoderBlockPreNorm
+            else:
+                block = DecoderBlock
 
         self.blocks = nn.ModuleList([block(**block_args) for _ in range(num_layers)])
         if layer_norm and prenormalized:
@@ -258,9 +253,7 @@ class TransformerAttentionDecoder(nn.Module):
                 if tie_embedding:
                     self.output_projection = self.input_projection
                 else:
-                    self.output_projection = nn.Parameter(
-                        torch.empty(embedding_size, hidden_size)
-                    )
+                    self.output_projection = nn.Parameter(torch.empty(embedding_size, hidden_size))
                     nn.init.kaiming_uniform_(self.output_projection, a=math.sqrt(5))
 
     def forward(
@@ -305,9 +298,7 @@ class TransformerAttentionDecoder(nn.Module):
 
         if self.permuted:
             if self.training:
-                output_order, output_reorder = permuted_order(
-                    inputs, batch_first=self.batch_first
-                )
+                output_order, output_reorder = permuted_order(inputs, batch_first=self.batch_first)
                 pos_target = output_order.narrow(time_dim, 1, x.size(time_dim))
 
                 pos_input = output_order.narrow(time_dim, 0, x.size(time_dim))
@@ -316,11 +307,7 @@ class TransformerAttentionDecoder(nn.Module):
                 cond_embedding = self.conditioned_pos(pos_target)
 
             else:
-                pos_target = (
-                    torch.arange(x.size(time_dim) * time_multiply, device=x.device)
-                    + time_step
-                    + 1
-                )
+                pos_target = torch.arange(x.size(time_dim) * time_multiply, device=x.device) + time_step + 1
                 cond_embedding = self.conditioned_pos(pos_target).unsqueeze(batch_dim)
                 output_reorder = None
 
@@ -328,9 +315,7 @@ class TransformerAttentionDecoder(nn.Module):
                 padding_mask = repeat(padding_mask, time_multiply).flatten(0, 1)
                 x = repeat(x, time_multiply).flatten(0, 1)
                 cond_embedding = (
-                    repeat(
-                        cond_embedding.squeeze(batch_dim), inputs.size(batch_dim), dim=1
-                    )
+                    repeat(cond_embedding.squeeze(batch_dim), inputs.size(batch_dim), dim=1)
                     .transpose(0, 1)
                     .contiguous()
                     .view_as(x)
@@ -448,10 +433,7 @@ class Transformer(Seq2Seq):
         self.decoder = TransformerAttentionDecoder(**decoder)
 
         if tie_embedding and not isinstance(vocab_size, tuple):
-            assert (
-                self.encoder.embedder.weight.shape
-                == self.decoder.classifier.weight.shape
-            )
+            assert self.encoder.embedder.weight.shape == self.decoder.classifier.weight.shape
             self.encoder.embedder.weight = self.decoder.classifier.weight
             if embedding_size != hidden_size:
                 self.encoder.input_projection = self.decoder.input_projection

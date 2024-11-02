@@ -19,16 +19,12 @@ def positional_embedding(
 ):
     assert channels % 2 == 0
     num_timescales = channels // 2
-    log_timescale_increment = math.log(float(max_timescale) / float(min_timescale)) / (
-        float(num_timescales) - 1.0
-    )
+    log_timescale_increment = math.log(float(max_timescale) / float(min_timescale)) / (float(num_timescales) - 1.0)
     if torch.is_tensor(position_or_length):
         position = position_or_length + offset
         device = device or position_or_length.device
     else:  # length of tensor given
-        position = torch.arange(
-            offset, offset + position_or_length, device=device, dtype=torch.long
-        )
+        position = torch.arange(offset, offset + position_or_length, device=device, dtype=torch.long)
     inv_timescales = torch.arange(0, num_timescales, device=device, dtype=torch.float)
 
     inv_timescales.mul_(-log_timescale_increment).exp_().mul_(min_timescale)
@@ -79,11 +75,9 @@ class AverageNetwork(nn.Module):
         self.input_size = input_size
         self.time_step = 0
         self.batch_dim, self.time_dim = (0, 1) if batch_first else (1, 0)
-        self.gates = nn.Sequential(
-            wn_func(nn.Linear(2 * input_size, 2 * input_size)), nn.Sigmoid()
-        )
+        self.gates = nn.Sequential(wn_func(nn.Linear(2 * input_size, 2 * input_size)), nn.Sigmoid())
         if layer_norm:
-            self.lnorm = nn.LayerNorm(input_size)
+            self.lnorm = nn.RMSNorm(input_size)
         self.fc = nn.Sequential(
             wn_func(Linear(input_size, inner_linear, groups=inner_groups)),
             nn.ReLU(inplace=True),
@@ -105,10 +99,7 @@ class AverageNetwork(nn.Module):
             avg_attn = x.cumsum(self.time_dim) / num_steps
         else:
             # past_num_steps = self.time_step
-            avg_attn = (
-                (self.time_step * state.unsqueeze(self.time_dim))
-                + x.cumsum(self.time_dim)
-            ) / num_steps
+            avg_attn = ((self.time_step * state.unsqueeze(self.time_dim)) + x.cumsum(self.time_dim)) / num_steps
 
         state = avg_attn.select(self.time_dim, -1)
         g = self.fc(avg_attn)
@@ -136,13 +127,14 @@ class EncoderBlock(nn.Module):
         layer_norm=True,
         weight_norm=False,
         dropout=0,
+        elementwise_affine=True,
     ):
 
         super(EncoderBlock, self).__init__()
         wn_func = wn if weight_norm else lambda x: x
         if layer_norm:
-            self.lnorm1 = nn.LayerNorm(hidden_size)
-            self.lnorm2 = nn.LayerNorm(hidden_size)
+            self.lnorm1 = nn.RMSNorm(hidden_size, elementwise_affine=elementwise_affine)
+            self.lnorm2 = nn.RMSNorm(hidden_size, elementwise_affine=elementwise_affine)
         self.dropout = nn.Dropout(dropout)
         self.batch_first = batch_first
         self.attention = MultiHeadAttention(
@@ -196,6 +188,31 @@ class EncoderBlockPreNorm(EncoderBlock):
         return x
 
 
+class TimeDependentEncoderBlockPreNorm(EncoderBlock):
+    def __init__(self, *kargs, **kwargs):
+        elementwise_affine = False
+        kwargs["elementwise_affine"] = elementwise_affine
+        super(TimeDependentEncoderBlockPreNorm, self).__init__(*kargs, **kwargs)
+
+    def forward(self, inputs, gate_msa, gate_mlp, scale_msa, scale_mlp):
+        x = inputs
+        res = x
+        x = self.lnorm1(x) if hasattr(self, "lnorm1") else x
+        x = x * (1 + scale_msa.unsqueeze(1))
+        x, _ = self.attention(x, x, x)
+        x = gate_msa.unsqueeze(1) * x
+        x = self.dropout(x).add_(res)
+
+        res = x
+        x = self.lnorm2(x) if hasattr(self, "lnorm2") else x
+        x = x * (1 + scale_mlp.unsqueeze(1))
+        x = self.fc(x)
+        x = gate_mlp.unsqueeze(1) * x
+
+        x = self.dropout(x).add_(res)
+        return x
+
+
 class DecoderBlock(nn.Module):
 
     def __init__(
@@ -211,14 +228,15 @@ class DecoderBlock(nn.Module):
         stateful=None,
         state_dim=None,
         causal=True,
+        elementwise_affine=True,
     ):
 
         super(DecoderBlock, self).__init__()
         wn_func = wn if weight_norm else lambda x: x
         if layer_norm:
-            self.lnorm1 = nn.LayerNorm(hidden_size)
-            self.lnorm2 = nn.LayerNorm(hidden_size)
-            self.lnorm3 = nn.LayerNorm(hidden_size)
+            self.lnorm1 = nn.RMSNorm(hidden_size, elementwise_affine=elementwise_affine)
+            self.lnorm2 = nn.RMSNorm(hidden_size, elementwise_affine=elementwise_affine)
+            self.lnorm3 = nn.RMSNorm(hidden_size, elementwise_affine=elementwise_affine)
         self.dropout = nn.Dropout(dropout)
         self.weight_norm = weight_norm
         self.stateful = stateful
@@ -299,9 +317,7 @@ class DecoderBlock(nn.Module):
                 time_dim = 1 if self.batch_first else 0
                 x_past, mask_past = state
                 x_past = torch.cat((x_past, x), time_dim)
-                mask_past = torch.cat(
-                    (mask_past, self.masked_attention.mask_k), time_dim
-                )
+                mask_past = torch.cat((mask_past, self.masked_attention.mask_k), time_dim)
                 self.masked_attention.set_mask_k(mask_past)
             x, _ = self.masked_attention(x, x_past, x_past)
             state = (x_past, mask_past)
@@ -353,15 +369,51 @@ class DecoderBlockPreNorm(DecoderBlock):
         return x, attn_enc, state
 
 
+class TimeDependentDecoderBlockPreNorm(DecoderBlock):
+    def __init__(self, *kargs, **kwargs):
+        elementwise_affine = False
+        kwargs["elementwise_affine"] = elementwise_affine
+        super(TimeDependentDecoderBlockPreNorm, self).__init__(*kargs, **kwargs)
+
+    def forward(self, inputs, context, gate_msa, gate_mlp, scale_msa, scale_mlp, state=None):
+        x = inputs
+        res = x
+        x = self.lnorm1(x) if hasattr(self, "lnorm1") else x
+        if self.stateful:
+            x, state = self.state_block(x, state)
+        else:  # block_state are past inputs
+            if state is None:
+                x_past = x
+            else:
+                x_past = torch.cat((state, x), 1)
+            x, _ = self.masked_attention(x, x_past, x_past)
+            state = x_past
+        if hasattr(self, "state_proj"):
+            x = self.state_proj(x)
+
+        x = self.dropout(x).add(res)
+        res = x
+        x = self.lnorm2(x) if hasattr(self, "lnorm2") else x
+        x = x * (1 + scale_msa.unsqueeze(1))
+        x, attn_enc = self.attention(x, context, context)
+        x = gate_msa.unsqueeze(1) * x
+        x = self.dropout(x).add_(res)
+
+        res = x
+        x = self.lnorm3(x) if hasattr(self, "lnorm3") else x
+        x = x * (1 + scale_mlp.unsqueeze(1))
+        x = self.fc(x)
+        x = gate_mlp.unsqueeze(1) * x
+        x = self.dropout(x).add_(res)
+
+        return x, attn_enc, state
+
+
 class CharWordEmbedder(nn.Module):
-    def __init__(
-        self, num_chars, embedding_size, output_size, num_heads=8, padding_idx=0
-    ):
+    def __init__(self, num_chars, embedding_size, output_size, num_heads=8, padding_idx=0):
         super(CharWordEmbedder, self).__init__()
         self.num_chars = num_chars
-        self.char_embedding = nn.Embedding(
-            num_chars, embedding_size, padding_idx=padding_idx
-        )
+        self.char_embedding = nn.Embedding(num_chars, embedding_size, padding_idx=padding_idx)
         self.attn = MultiHeadAttention(embedding_size, output_size, num_heads)
         self.padding_idx = padding_idx
 

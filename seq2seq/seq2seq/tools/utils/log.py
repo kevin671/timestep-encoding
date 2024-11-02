@@ -160,7 +160,8 @@ class ResultsLog(object):
                            test_loss=test_loss)
         """
         df = pd.DataFrame([kwargs.values()], columns=kwargs.keys())
-        self.results = self.results.append(df, ignore_index=True)
+        # self.results = self.results.append(df, ignore_index=True)
+        self.results = pd.concat([self.results, df], ignore_index=True)
         if hasattr(self, 'hd_experiment'):
             for k, v in kwargs.items():
                 self.hd_experiment.metric(k, v, log=False)

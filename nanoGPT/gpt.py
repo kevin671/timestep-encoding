@@ -1,18 +1,20 @@
 import inspect
 import math
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from model import Block, LayerNorm
 
-from algorithmic_task.model import Block, LayerNorm
 
-
+@dataclass
 class GPTConfig:
     block_size: int = 1024
     vocab_size: int = (
         50304  # GPT-2 vocab_size of 50257, padded up to nearest multiple of 64 for efficiency
     )
+    n_loop: int = 1  # dummy
     n_layer: int = 12
     n_head: int = 12
     n_embd: int = 768

@@ -5,16 +5,16 @@
 wandb_log = True
 wandb_project = "owt"
 
-model_type = "time_dependent"
+model_type = "gpt2"
 # these make the total batch size be ~0.5M
 # 12 batch size * 1024 block size * 5 gradaccum * 8 GPUs = 491,520
-batch_size = 12
+batch_size = 24
 block_size = 1024
-gradient_accumulation_steps = 5 * 8
-n_loop = 24
+gradient_accumulation_steps = 5 * 4
 
-n_head = 16  # 12
-n_embd = 2048  # 768
+n_head = 12
+n_embd = 768
+n_layer = 24
 
 # this makes total number of tokens be 300B
 max_iters = 600000
@@ -28,7 +28,6 @@ log_interval = 10
 # weight decay
 weight_decay = 1e-1
 
-# init_from = "resume"  # "scratch", "resume"
-# resumed_run_id = "hozw07si"
+init_from = "scratch"  # "resume"
 
-wandb_run_name = f"{n_loop}-{model_type}-{n_embd}-embd-{n_head}-heads"
+wandb_run_name = f"{model_type}-{n_layer}-layer-{n_embd}-embd-{n_head}-heads"
