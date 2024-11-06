@@ -41,7 +41,7 @@ torchrun --standalone --nproc_per_node=2 train.py config/train_gpt2.py
 ```
 You can control parameters in `config/train_looped.py` and `config/train_time_dependent.py`.
 
-### Machine Translation: WMT16_de_en
+### Machine Translation: WMT16 Denmark-English
 
 ```bash
 cd seq2seq
