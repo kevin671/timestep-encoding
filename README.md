@@ -46,9 +46,18 @@ You can control parameters in `config/train_looped.py` and `config/train_time_de
 ```bash
 cd in_context
 
-
+n_gpu=0
+b=50
+T=50
+python scripts/train.py --config configs/decision_tree/base_loop.yaml \
+    --model.n_layer 1 \
+    --training.curriculum.loops.start $T \
+    --training.curriculum.loops.end $b \
+    --training.n_loop_window $T \
+    --wandb.name "DT_loop_L1_ends{$b}_T{$T}" \
+    --gpu.n_gpu $n_gpu
 ```
-
+Use `configs/decision_tree/base_time.yaml` for timestep encoding models.
 
 ### Machine Translation: WMT16 English-Denmark
 
