@@ -9,8 +9,8 @@ https://github.com/huggingface/transformers/blob/main/src/transformers/models/gp
 Reference Nano-GPT: https://github.com/karpathy/nanoGPT/blob/master/model.py
 """
 
-import math
 import inspect
+import math
 from dataclasses import dataclass
 
 import torch
@@ -28,7 +28,7 @@ def new_gelu(x):
 
 
 class LayerNorm(nn.Module):
-    """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
+    """LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False"""
 
     def __init__(self, ndim, bias):
         super().__init__()
@@ -56,13 +56,17 @@ class CausalSelfAttention(nn.Module):
         self.dropout = config.dropout
 
         # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0
-        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
+        self.flash = hasattr(torch.nn.functional, "scaled_dot_product_attention")
         # self.flash = False  # TODO: temporarily disable flash attention
         if not self.flash:
             print("WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0")
             # causal mask to ensure that attention is only applied to the left in the input sequence
-            self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
-                                 .view(1, 1, config.block_size, config.block_size))
+            self.register_buffer(
+                "bias",
+                torch.tril(torch.ones(config.block_size, config.block_size)).view(
+                    1, 1, config.block_size, config.block_size
+                ),
+            )
 
     def forward(self, x, cross_input=None, attn_mask=None):
         B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (n_embd)
@@ -77,11 +81,12 @@ class CausalSelfAttention(nn.Module):
         if self.flash:
             # efficient attention using Flash Attention CUDA kernels
             y = torch.nn.functional.scaled_dot_product_attention(
-                q, k, v, attn_mask=None, dropout_p=self.dropout, is_causal=True)
+                q, k, v, attn_mask=None, dropout_p=self.dropout, is_causal=True
+            )
         else:
             # manual implementation of attention
             att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-            att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float('-inf'))
+            att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
             att = F.softmax(att, dim=-1)
             att = self.attn_dropout(att)
             y = att @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
@@ -122,6 +127,23 @@ class Block(nn.Module):
         return x
 
 
+class HyperBlock(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.ln_1 = nn.RMSNorm(config.n_embd, elementwise_affine=False)
+        self.attn = CausalSelfAttention(config)
+        self.ln_2 = nn.RMSNorm(config.n_embd, elementwise_affine=False)
+        self.mlp = MLP(config)
+
+        self.adaLN_modulation = nn.Sequential(nn.SiLU(), nn.Linear(config.n_embd, 4 * config.n_embd, bias=True))
+
+    def forward(self, x, t_emb):
+        scale_msa, scale_mlp, gate_msa, gate_mlp = self.adaLN_modulation(t_emb).chunk(4, dim=1)
+        x = x + gate_msa.unsqueeze(1) * self.attn(self.ln_1(x) * (1 + scale_msa.unsqueeze(1)))
+        x = x + gate_mlp.unsqueeze(1) * self.mlp(self.ln_2(x) * (1 + scale_mlp.unsqueeze(1)))
+        return x
+
+
 @dataclass
 class GPT2Config:
     block_size: int = 1024
@@ -141,18 +163,20 @@ class GPT2Model(nn.Module):
         assert config.block_size is not None
         self.config = config
 
-        self.transformer = nn.ModuleDict(dict(
-            wpe=nn.Embedding(config.block_size, config.n_embd),
-            drop=nn.Dropout(config.dropout),
-            h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f=LayerNorm(config.n_embd, bias=config.bias),
-        ))
+        self.transformer = nn.ModuleDict(
+            dict(
+                wpe=nn.Embedding(config.block_size, config.n_embd),
+                drop=nn.Dropout(config.dropout),
+                h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+                ln_f=LayerNorm(config.n_embd, bias=config.bias),
+            )
+        )
 
         # init all weights
         self.apply(self._init_weights)
         # apply special scaled init to the residual projections, per GPT-2 paper
         for pn, p in self.named_parameters():
-            if pn.endswith('c_proj.weight'):
+            if pn.endswith("c_proj.weight"):
                 torch.nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
 
         # report number of parameters
@@ -182,12 +206,16 @@ class GPT2Model(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, inputs_embeds, position_ids=None, rm_pos_embd=False, add_inputs_embeds=False, output_intermediate=False):
+    def forward(
+        self, inputs_embeds, position_ids=None, rm_pos_embd=False, add_inputs_embeds=False, output_intermediate=False
+    ):
         device = inputs_embeds.device
         b, t, d = inputs_embeds.size()
-        assert t <= self.config.block_size, f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
+        assert (
+            t <= self.config.block_size
+        ), f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
         if position_ids is None:
-           position_ids = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0)  # shape (1, t)
+            position_ids = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0)  # shape (1, t)
         if output_intermediate:
             embeds = [inputs_embeds]
 
@@ -202,6 +230,149 @@ class GPT2Model(nn.Module):
                 x = block(x + inputs_embeds)
             else:
                 x = block(x)
+            if output_intermediate:
+                embeds.append(x)
+        x = self.transformer.ln_f(x)
+        if output_intermediate:
+            return x, embeds
+
+        return x
+
+
+
+class TimestepEmbedder(nn.Module):
+    """
+    Embeds scalar timesteps into vector representations.
+    """
+
+    def __init__(self, hidden_size, frequency_embedding_size=256):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(frequency_embedding_size, hidden_size, bias=True),
+            nn.SiLU(),
+            nn.Linear(hidden_size, hidden_size, bias=True),
+        )
+        self.frequency_embedding_size = frequency_embedding_size
+
+    @staticmethod
+    def timestep_embedding(t, dim, max_period=10000):
+        """
+        Create sinusoidal timestep embeddings.
+        :param t: a 1-D Tensor of N indices, one per batch element.
+                          These may be fractional.
+        :param dim: the dimension of the output.
+        :param max_period: controls the minimum frequency of the embeddings.
+        :return: an (N, D) Tensor of positional embeddings.
+        """
+        # https://github.com/openai/glide-text2im/blob/main/glide_text2im/nn.py
+        half = dim // 2
+        freqs = torch.exp(-math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half).to(
+            device=t.device
+        )
+        args = t[:, None].float() * freqs[None]
+        embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
+        if dim % 2:
+            embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
+        return embedding
+
+    def forward(self, t):
+        # t: (N,) tensor of timesteps
+        # t_emb: (N, D) tensor of timestep embeddings
+        t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
+        t_emb = self.mlp(t_freq)
+        return t_emb
+
+
+class TimeDependentGPT2Model(nn.Module):
+
+    def __init__(self, config):
+        super().__init__()
+        assert config.vocab_size is not None
+        assert config.block_size is not None
+        self.config = config
+
+        self.transformer = nn.ModuleDict(
+            dict(
+                wpe=nn.Embedding(config.block_size, config.n_embd),
+                drop=nn.Dropout(config.dropout),
+                h=nn.ModuleList([HyperBlock(config) for _ in range(config.n_layer)]),
+                ln_f=LayerNorm(config.n_embd, bias=config.bias),
+            )
+        )
+
+        self.timestep_embedder = TimestepEmbedder(config.n_embd)
+
+        # init all weights
+        self.apply(self._init_weights)
+        # apply special scaled init to the residual projections, per GPT-2 paper
+        for pn, p in self.named_parameters():
+            if pn.endswith("c_proj.weight"):
+                torch.nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
+
+        for block in self.transformer.h:
+            nn.init.constant_(block.adaLN_modulation[-1].weight, 0)
+            nn.init.constant_(block.adaLN_modulation[-1].bias, 0)
+
+        # report number of parameters
+        print("number of parameters: %.2fM" % (self.get_num_params() / 1e6,))
+
+    def get_num_params(self, non_embedding=True):
+        """
+        Return the number of parameters in the model.
+        For non-embedding count (default), the position embeddings get subtracted.
+        The token embeddings would too, except due to the parameter sharing these
+        params are actually used as weights in the final layer, so we include them.
+        """
+        n_params = sum(p.numel() for p in self.parameters())
+        if non_embedding:
+            n_params -= self.transformer.wpe.weight.numel()
+        return n_params
+
+    def _init_weights(self, module):
+        # this is the same as huggingface repo:
+        # initialize range: https://huggingface.co/transformers/v3.0.2/_modules/transformers/configuration_gpt2.html#GPT2Config
+        # initialize function: https://huggingface.co/transformers/v3.0.2/_modules/transformers/modeling_gpt2.html
+        # search there _init_weights function
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def forward(
+        self,
+        inputs_embeds,
+        idx,
+        position_ids=None,
+        rm_pos_embd=False,
+        add_inputs_embeds=False,
+        output_intermediate=False,
+    ):
+        device = inputs_embeds.device
+        b, t, d = inputs_embeds.size()
+        assert (
+            t <= self.config.block_size
+        ), f"Cannot forward sequence of length {t}, block size is only {self.config.block_size}"
+        if position_ids is None:
+            position_ids = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0)  # shape (1, t)
+        if output_intermediate:
+            embeds = [inputs_embeds]
+
+        # forward the GPT model itself
+        # tok_emb = self.transformer.wte(idx)  # token embeddings of shape (b, t, n_embd)
+        pos_emb = self.transformer.wpe(position_ids)  # position embeddings of shape (1, t, n_embd)
+        if rm_pos_embd:
+            pos_emb = torch.zeros_like(pos_emb, device=device)
+        x = self.transformer.drop(inputs_embeds + pos_emb)
+
+        layer_id_tensor = torch.full((b,), idx, dtype=torch.long, device=device)
+        t_emb = self.timestep_embedder(layer_id_tensor)
+        for block in self.transformer.h:
+            if add_inputs_embeds:
+                x = block(x + inputs_embeds, t_emb)
+            else:
+                x = block(x, t_emb)
             if output_intermediate:
                 embeds.append(x)
         x = self.transformer.ln_f(x)

@@ -20,7 +20,7 @@ gpu_schema = {
 }
 
 model_schema = {
-    "family": merge(tstring, allowed(["gpt2", "gpt2_loop", "gpt2_tying"])),
+    "family": merge(tstring, allowed(["gpt2", "gpt2_loop", "gpt2_tying", "gpt2_time_dependent_loop"])),
     "n_positions": merge(tinteger, required),  # maximum context length
     "n_dims": merge(tinteger, required),  # latent dimension
     "n_embd": merge(tinteger, required),

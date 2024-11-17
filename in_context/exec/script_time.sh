@@ -38,12 +38,12 @@ T=10
 # Decision Tree ########################################################################################################
 b=12
 T=12
-python scripts/train.py --config configs/decision_tree/base_loop.yaml \
+python scripts/train.py --config configs/decision_tree/base_time.yaml \
     --model.n_layer 1 \
     --training.curriculum.loops.start $T \
     --training.curriculum.loops.end $b \
     --training.n_loop_window $T \
-    --wandb.name "DT_loop_L1_ends{$b}_T{$T}" \
+    --wandb.name "DT_time_L1_ends{$b}_T{$T}" \
     --gpu.n_gpu $n_gpu
 
 # ReLU2NN  #############################################################################################################

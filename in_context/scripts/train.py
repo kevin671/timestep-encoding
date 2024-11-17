@@ -1,20 +1,19 @@
-import os
 import datetime
+import os
 
-from quinine import QuinineArgumentParser
-from tqdm import tqdm
 import torch
+import wandb
 import yaml
-
 from curriculum import Curriculum
-from schema import schema
+from main_utils import get_run_id, init_device, load_pretrained_model
 from models import build_model
+from quinine import QuinineArgumentParser
+from schema import schema
 from tasks import get_task_sampler
-from main_utils import init_device, get_run_id, load_pretrained_model
+from tqdm import tqdm
+
 # from eval import get_run_metrics
 
-
-import wandb
 
 torch.backends.cudnn.benchmark = True
 
@@ -26,12 +25,12 @@ def calculate_gradient_norm(model):
         param_norm = p.grad.data.norm(2)
         total_norm += param_norm.item() ** 2
         norm_dict[n] = param_norm
-    total_norm = total_norm ** (1. / 2)
+    total_norm = total_norm ** (1.0 / 2)
     return norm_dict, total_norm
 
 
 def train_step(args, curriculum, model, xs, ys, optimizer, ctx, scaler):
-    if args.model.family in ['gpt2', 'gpt2_tying']:
+    if args.model.family in ["gpt2", "gpt2_tying"]:
         if ctx is not None:
             with ctx:
                 y_pred = model(xs, ys, add_inputs_embeds=args.training.add_inputs_embeds)  # [B, n]
@@ -41,9 +40,10 @@ def train_step(args, curriculum, model, xs, ys, optimizer, ctx, scaler):
             y_pred = model(xs, ys, add_inputs_embeds=args.training.add_inputs_embeds)  # [B, n]
             # list of [B, n], length K + 1, get rid of the 0-th one
             loss = (ys - y_pred).square().mean()  # auto on both K and n (number of in context samples)
-    elif args.model.family in ['gpt2_loop']:
+    elif args.model.family in ["gpt2_loop", "gpt2_time_dependent_loop"]:
         n_loops = curriculum.n_loops  # K
         if ctx is not None:
+            raise NotImplementedError
             with ctx:
                 horizon_start = max(0, n_loops - args.training.n_loop_window)
                 y_pred_list = model(xs, ys, horizon_start, n_loops)
@@ -58,14 +58,18 @@ def train_step(args, curriculum, model, xs, ys, optimizer, ctx, scaler):
             # list of [B, n], length K
             y_pred_arr = torch.cat(y_pred_list, dim=0)  # [B * K, n]
             y_star_arr = torch.cat([ys] * len(y_pred_list), dim=0)  # [B * K, n]
-            loss = (y_star_arr - y_pred_arr).square().mean()  # auto on both K and n (number of in context samples)
+            # loss = (y_star_arr - y_pred_arr).square().mean()  # auto on both K and n (number of in context samples)
             y_pred = y_pred_list[-1]  # [B, n]
+
+            loss = (ys - y_pred).square().mean()
     if args.training.use_ctx:
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
     else:
         loss.backward()
+        # loss clipping
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
         optimizer.step()
     norm_dict, total_norm = calculate_gradient_norm(model)
     optimizer.zero_grad(set_to_none=True)
@@ -74,13 +78,13 @@ def train_step(args, curriculum, model, xs, ys, optimizer, ctx, scaler):
 
 def main(args, device):
     # TORCH 2.0 ZONE ###############################
-    torch.set_float32_matmul_precision('highest')
+    torch.set_float32_matmul_precision("highest")
     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
-    dtype = 'float16'  # 'bfloat16', 'float32'
-    ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
+    dtype = "float16"  # 'bfloat16', 'float32'
+    ptdtype = {"float32": torch.float32, "bfloat16": torch.bfloat16, "float16": torch.float16}[dtype]
     if args.training.use_ctx:
-        ctx = torch.amp.autocast(device_type='cuda', dtype=ptdtype, cache_enabled=False)
+        ctx = torch.amp.autocast(device_type="cuda", dtype=ptdtype, cache_enabled=False)
     else:
         ctx = None
     ################################################
@@ -102,16 +106,19 @@ def main(args, device):
     model.train()
 
     optimizer = torch.optim.Adam(
-        model.parameters(), lr=args.training.learning_rate, weight_decay=args.training.weight_decay)
-    scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+        model.parameters(), lr=args.training.learning_rate, weight_decay=args.training.weight_decay
+    )
+    scaler = torch.cuda.amp.GradScaler(enabled=(dtype == "float16"))
     curriculum = Curriculum(args.training.curriculum)
 
     # Here the model load the pretrained model
     args, model, optimizer, curriculum, state_path, starting_step = load_pretrained_model(
-        args, model, optimizer, curriculum, device)
+        args, model, optimizer, curriculum, device
+    )
 
     if args.training.use_fixed_dataset:
         from main_utils import gen_dataloader
+
         task_sampler = get_task_sampler(
             task_name=args.training.task_name,
             batch_size=args.training.batch_size,
@@ -121,18 +128,16 @@ def main(args, device):
             device=device,
             sparsity=args.training.sparsity,
         )
-        train_loader = gen_dataloader(task_sampler, args.training.train_size,
-                                      args.training.batch_size)
+        train_loader = gen_dataloader(task_sampler, args.training.train_size, args.training.batch_size)
         train_iter = iter(train_loader)
-        test_loader = gen_dataloader(task_sampler, args.training.test_size,
-                                     args.training.batch_size)
+        test_loader = gen_dataloader(task_sampler, args.training.test_size, args.training.batch_size)
 
     pbar = tqdm(range(starting_step, args.training.train_steps))
     for i in pbar:
         if args.training.use_fixed_dataset:
             try:
                 batch = next(train_iter)
-                xs, ys = batch['x'].to(device), batch['y'].to(device)
+                xs, ys = batch["x"].to(device), batch["y"].to(device)
             except StopIteration:
                 train_iter = iter(train_loader)
         else:
@@ -159,10 +164,10 @@ def main(args, device):
                 # eval
                 with torch.no_grad():
                     for batch in test_loader:
-                        xs, ys = batch['x'].to(device), batch['y'].to(device)
-                        if args.model.family in ['gpt2']:
+                        xs, ys = batch["x"].to(device), batch["y"].to(device)
+                        if args.model.family in ["gpt2"]:
                             output = model(xs, ys)  # [B,]
-                        elif args.model.family in ['gpt2_loop']:
+                        elif args.model.family in ["gpt2_loop"]:
                             n_loops = curriculum.n_loops  # K
                             y_pred_list = model(xs, ys, 0, n_loops)
                             output = y_pred_list[-1]  # [B, n]
@@ -176,12 +181,10 @@ def main(args, device):
                     "loop_times": curriculum.n_loops,
                     "grad_norm/layerwise": grad_norm_dict,
                     "grad_norm": total_norm,
-                    "pointwise/loss": dict(
-                        zip(point_wise_tags, point_wise_loss.detach().cpu().numpy())
-                    ),
+                    "pointwise/loss": dict(zip(point_wise_tags, point_wise_loss.detach().cpu().numpy())),
                     "n_points": curriculum.n_points,
                     "n_dims": curriculum.n_dims_truncated,
-                    "lr": optimizer.param_groups[0]['lr'],
+                    "lr": optimizer.param_groups[0]["lr"],
                 },
                 step=i,
             )
@@ -196,13 +199,10 @@ def main(args, device):
                 "train_step": i,
             }
             torch.save(training_state, state_path)
-        if (
-                args.training.keep_every_steps > 0
-                and i % args.training.keep_every_steps == 0
-                and i > 0
-        ) or (i == args.training.train_steps - 1):
-            torch.save({'model': model.state_dict()},
-                       os.path.join(args.out_dir, f"model_{i}.pt"))
+        if (args.training.keep_every_steps > 0 and i % args.training.keep_every_steps == 0 and i > 0) or (
+            i == args.training.train_steps - 1
+        ):
+            torch.save({"model": model.state_dict()}, os.path.join(args.out_dir, f"model_{i}.pt"))
 
 
 if __name__ == "__main__":
@@ -224,7 +224,7 @@ if __name__ == "__main__":
         os.makedirs(out_dir)
     args.out_dir = out_dir
     # add a timestamp here, if resumed, this will be the resumed time
-    args.wandb['timestamp'] = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    args.wandb["timestamp"] = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
 
     with open(os.path.join(out_dir, "config.yaml"), "w") as yaml_file:
         yaml.dump(args.__dict__, yaml_file, default_flow_style=False)
