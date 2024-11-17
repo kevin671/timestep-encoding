@@ -46,9 +46,7 @@ You can control parameters in `config/train_looped.py` and `config/train_time_de
 ```bash
 cd in_context
 
-n_gpu=0
-b=50
-T=50
+n_gpu=0, b=50, T=50
 python scripts/train.py --config configs/decision_tree/base_loop.yaml \
     --model.n_layer 1 \
     --training.curriculum.loops.start $T \
