@@ -12,18 +12,26 @@ from tqdm import tqdm
 from transformers import get_scheduler, set_seed
 
 
-def evaluate(cur_loader):
+def evaluate(cur_loader, max_iter=None):
     Sum, correct = 0, 0
     cur_loader.sampler.set_epoch(0)
+    iter_count = 0
+
     for input_ids, y, _ in cur_loader:
+        if max_iter and iter_count > max_iter:
+            break
         inputs, y = input_ids.cuda(), y.cuda()
         logits = model(inputs)
         Sum += torch.as_tensor(inputs.shape[0]).cuda()
+
         truth = torch.where(y > 0, 1, 0)
         predict = torch.where(torch.argmax(logits, dim=2) == y, 1, 0) * truth
         correct += torch.sum(
             torch.where(torch.sum(truth, dim=1) == torch.sum(predict, dim=1), 1, 0)
         )
+
+        iter_count += 1
+
     dist.all_reduce(correct)
     dist.all_reduce(Sum)
     return correct / Sum
@@ -155,6 +163,7 @@ loader, test_loader = getLoader(args)
 
 criterion = nn.CrossEntropyLoss(ignore_index=0)
 for epoch in range(args.epoch):
+
     dist.barrier()
     model.train()
     loader.sampler.set_epoch(epoch)
@@ -173,29 +182,27 @@ for epoch in range(args.epoch):
         epoch_1000x = int((data_iter_step / len(loader) + epoch) * 1000)
         if dist.get_rank() == main_process:
             if data_iter_step % 100 == 0:
-                # log_writer.add_scalar("loss", loss.item(), epoch_1000x)
                 wandb.log({"loss": loss.item()})
                 if not args.write2file:
                     pbar.set_description(f"epoch:{epoch}")
 
     scheduler.step()
-    # if dist.get_rank() == main_process:
-    #    log_writer.flush()
+
     if (epoch + 1) % (args.epoch // 10) == 0:
         dist.barrier()
         if dist.get_rank() == main_process:
             out_dir = os.path.join(args.output_dir, wandb.run.id)
             os.makedirs(out_dir, exist_ok=True)
-            torch.save(
-                # model.module.state_dict(), f"{args.output_dir}/epoch_{epoch+1}.pt"
-                model.module.state_dict(),
-                f"{out_dir}/epoch_{epoch+1}.pt",
-            )
+            torch.save(model.module.state_dict(), f"{out_dir}/epoch_{epoch+1}.pt")
 
     if (epoch + 1) % (args.epoch // 10) == 0:
-        # evaluate
         model.eval()
         with torch.no_grad():
+            train_acc = evaluate(loader, max_iter=100)
+            if dist.get_rank() == main_process:
+                print(f"train acc:{train_acc}")
+                wandb.log({"train_acc": train_acc})
+
             acc = evaluate(test_loader)
             if dist.get_rank() == main_process:
                 print(f"test acc:{acc}")

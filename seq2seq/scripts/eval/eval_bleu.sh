@@ -1,7 +1,13 @@
+#!/bin/sh
+#PJM -L rscgrp=share-short
+#PJM -L gpu=1
+#PJM -g gu14
+#PJM -j
+#PJM --fs /work
 
+source /work/gg45/g45004/.bashrc
 
-#!/bin/bash
-# Adapted from https://github.com/tensorflow/tensor2tensor
+conda activate timestep
 
 PAIR='en-de'
 TARGET_LNG='de'
@@ -9,7 +15,7 @@ SRC_TOK="./data/wmt16_de_en/newstest2014.tok.en"
 REF_TOK="./data/wmt16_de_en/newstest2014.tok.de"
 
 
-MODEL_PATH=$1
+MODEL_PATH="/work/gg45/g45004/timestep-encoding/seq2seq/results/LoopedTransformer_12"
 BEAM=${2:-"1"}
 TARGET_TOK=${3:-"${MODEL_PATH}/newstest2014.tok.en.translated"}
 MOSES=${4:-"./data/wmt16_de_en/mosesdecoder/"}

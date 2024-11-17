@@ -54,9 +54,7 @@ def solve(str1, str2):
                 d = 0
             else:
                 d = 3
-            matrix[i][j] = min(
-                matrix[i - 1][j] + 2, matrix[i][j - 1] + 2, matrix[i - 1][j - 1] + d
-            )
+            matrix[i][j] = min(matrix[i - 1][j] + 2, matrix[i][j - 1] + 2, matrix[i - 1][j - 1] + d)
     return matrix
 
 
@@ -65,7 +63,7 @@ for _ in range(10):
     max_len = 0
     max_history = 0
 
-    while len(train_set) < args.train_size:
+    while len(train_set) < args.train_size // 10:
         str1, str2 = get_seq(np.random.randint(args.length) + 1)
         matrix = solve(str1, str2)
         final = str1 + ["|"] + str2 + ["<sep>"]
@@ -78,7 +76,7 @@ for _ in range(10):
         max_len = max(max_len, len(str1) + len(str2) + 3)
 
     test_set = set()
-    while len(test_set) < args.test_size:
+    while len(test_set) < args.test_size // 10:
         str1, str2 = get_seq(np.random.randint(args.length) + 1)
         matrix = solve(str1, str2)
         final = str1 + ["|"] + str2 + ["<sep>"]

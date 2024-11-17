@@ -36,8 +36,8 @@ T=10
 #    --gpu.n_gpu $n_gpu
 
 # Decision Tree ########################################################################################################
-b=12
-T=12
+b=50
+T=50
 python scripts/train.py --config configs/decision_tree/base_time.yaml \
     --model.n_layer 1 \
     --training.curriculum.loops.start $T \

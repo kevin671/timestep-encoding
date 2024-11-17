@@ -23,15 +23,15 @@ LR0="512**(-0.5)"
 NUM_GPUS=2
 
 NUM_LOOPS=3
-MODEL_TYPE=LoopedTransformer  # TimeDependentLoopedTransformer # LoopedTransformer
+MODEL_TYPE=TimeDependentLoopedTransformer # TimeDependentLoopedTransformer # LoopedTransformer
 
 python -m torch.distributed.launch --standalone --nproc_per_node=${NUM_GPUS} main.py \
-  --save ${MODEL_TYPE}_${NUM_LOOPS} \
+  --save ${MODEL_TYPE}_large_${NUM_LOOPS} \
   --dataset ${DATASET} \
   --dataset-dir ${DATASET_DIR} \
   --results-dir ${OUTPUT_DIR} \
   --model ${MODEL_TYPE} \
-  --model-config "{'num_layers': 1, 'num_loops': ${NUM_LOOPS}, 'hidden_size': 1024, 'num_heads': 16, 'inner_linear': 4096, 'dropout':0.1, 'prenormalized': True}" \
+  --model-config "{'num_layers': 1, 'num_loops': ${NUM_LOOPS}, 'hidden_size': 2048, 'num_heads': 16, 'inner_linear': 4096, 'dropout':0.1, 'prenormalized': True}" \
   --data-config "{'moses_pretok':True,'tokenization':'bpe', 'tokenization_config':{'num_symbols':32000}, 'shared_vocab':True}" \
   --b 64 \
   --chunk-batch 2 \

@@ -41,7 +41,16 @@ torchrun --standalone --nproc_per_node=2 train.py config/train_gpt2.py
 ```
 You can control parameters in `config/train_looped.py` and `config/train_time_dependent.py`.
 
-### Machine Translation: WMT16 Denmark-English
+### In-Context Learning
+
+```bash
+cd in_context
+
+
+```
+
+
+### Machine Translation: WMT16 English-Denmark
 
 ```bash
 cd seq2seq
@@ -62,3 +71,4 @@ bash scripts/eval/eval_bleu.sh
 - [Code for "Towards Revealing the Mystery behind Chain of Thought: a Theoretical Perspective"](https://github.com/guyuntian/CoT_benchmark)
 - [nanoGPT](https://github.com/karpathy/nanoGPT)
 - [Seq2Seq in PyTorch](https://github.com/eladhoffer/seq2seq.pytorch)
+- [Code for "Looped Transformers are Better at Learning Learning Algorithms"](https://github.com/Leiay/looped_transformer)
