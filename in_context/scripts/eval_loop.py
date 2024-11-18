@@ -1,10 +1,9 @@
 import os
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from utils import aggregate_metrics, eval_looped_model
+from utils import aggregate_metrics, eval_looped_model, eval_unlooped_model
 
 fig_hparam = {
     "figsize": (8, 5),
@@ -62,16 +61,43 @@ xs, ys = real_task.xs, real_task.ys
 result_errs = {}
 result_loop_errs = {}
 
-from models import TransformerModelLooped, TransformerModelTimeDependentLooped
+from models import (
+    TransformerModel,
+    TransformerModelLooped,
+    TransformerModelTimeDependentLooped,
+)
 
-result_dir = "/work/gg45/g45004/timestep-encoding/in_context/results2/decision_tree_loop"
+result_dir = "/work/gg45/g45004/timestep-encoding/in_context/results2/decision_tree_baseline"
+
+run_id = "1118123336-DT_baseline-0bce"
+
+n_positions = 101
+n_embd = 256
+n_layer = 12
+n_head = 8
+
+step = 200000
+
+model = TransformerModel(n_dims, n_positions, n_embd, n_layer, n_head)
+model = get_model(model, result_dir, run_id, step)
+model = model.to(device)
+err, loop_err = eval_unlooped_model(model, xs, ys)
+
+result_errs[run_id] = err
+
+"""
 # run_id = "0721152049-LR_loop_L1_ends{30}_T{15}-0668"
-run_ids = ["1117030200-DT_loop_L1_ends{70}_T{15}-482b", "1117151547-DT_time_L1_ends{70}_T{15}-bfc1"]
+run_ids = [
+    "1117030200-DT_loop_L1_ends{70}_T{15}-482b",
+    "1117151547-DT_time_L1_ends{70}_T{15}-bfc1",
+    "1118085010-DT_loop_L1_ends{12}_T{12}-86ba",
+    "1118003007-DT_time_L1_ends{12}_T{12}-3784",
+]
 
 n_positions = 101
 n_embd = 256
 n_head = 8
-T = 70
+# T = 70
 n_layer = 1
 
 # model = TransformerModelLooped(n_dims, n_positions, n_embd, n_layer, n_head)
@@ -86,12 +112,15 @@ for run_id in run_ids:
     model = get_model(model, result_dir, run_id, step)
     model = model.to(device)
 
+    # get T from run id
+    T = int(run_id.split("T{")[1].split("}")[0])
+
     err, loop_err = eval_looped_model(model, xs, ys, loop_max=T)
 
     result_errs[run_id] = err
     result_loop_errs[run_id] = loop_err
     print(loop_err)
-
+"""
 
 result_errs_agg = aggregate_metrics(result_errs, n_dims_truncated)
 
@@ -104,7 +133,8 @@ fig, ax = plt.subplots(1, figsize=fig_hparam["figsize"])
 err_result_dict_agg = result_errs_agg
 
 cmap = matplotlib.cm.get_cmap("coolwarm")
-result_name_list = run_ids
+# result_name_list = run_ids
+result_name_list = [run_id]
 colors = cmap(np.linspace(0, 1, len(result_name_list)))
 for idx, model_name in enumerate(result_name_list):
     err = err_result_dict_agg[model_name]["mean"]

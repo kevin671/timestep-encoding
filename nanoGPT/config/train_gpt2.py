@@ -14,7 +14,7 @@ gradient_accumulation_steps = 5 * 4
 
 n_head = 12
 n_embd = 768
-n_layer = 24
+n_layer = 12
 
 # this makes total number of tokens be 300B
 max_iters = 600000
