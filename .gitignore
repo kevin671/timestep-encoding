@@ -17,3 +17,4 @@ out/
 wandb/
 *.txt
 output/
+_seq2seq
