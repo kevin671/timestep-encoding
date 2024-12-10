@@ -57,22 +57,6 @@ python scripts/train.py --config configs/decision_tree/base_loop.yaml \
 ```
 Use `configs/decision_tree/base_time.yaml` for timestep encoding models.
 
-### Machine Translation: WMT16 English-Denmark
-
-```bash
-cd seq2seq
-
-# Download and prepare the data
-bash scripts/downloaders/wmt16_en_de.sh
-
-# Train the model
-bash scripts/train/train.sh
-
-# Evaluate
-bash scripts/eval/eval_bleu.sh
-
-```
-
 ## Acknowledgement
 
 - [Code for "Towards Revealing the Mystery behind Chain of Thought: a Theoretical Perspective"](https://github.com/guyuntian/CoT_benchmark)
