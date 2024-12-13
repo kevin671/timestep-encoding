@@ -61,5 +61,4 @@ Use `configs/decision_tree/base_time.yaml` for timestep encoding models.
 
 - [Code for "Towards Revealing the Mystery behind Chain of Thought: a Theoretical Perspective"](https://github.com/guyuntian/CoT_benchmark)
 - [nanoGPT](https://github.com/karpathy/nanoGPT)
-- [Seq2Seq in PyTorch](https://github.com/eladhoffer/seq2seq.pytorch)
 - [Code for "Looped Transformers are Better at Learning Learning Algorithms"](https://github.com/Leiay/looped_transformer)
